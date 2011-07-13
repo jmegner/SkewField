@@ -7,37 +7,44 @@
 # keeping counts of letters' powers and words' coefficients, consumers of this
 # code might have an old version of python that does not have the Counter class
 #
-# note: here a semi-accurate list of functions in each SkewField-ish class:
-#   __init__
-#   __str__
-#   __repr__
-#   __hash__
-#   __cmp__
-#   deepcopy
-#   canonize
-#   zero
-#   one
-#   isZero
-#   isOne
-#   isScalar
-#   asOneAbove
-#   asPoly
-#   increasedSubs
-#   plus
-#   times
-#   addInverse
-#   multInverse
+# note: I have adopted a pro-immutable philosophy when it comes to these
+# classes; member functions do not modify self or any other argument (except
+# when constructing self); each math operation results in a newly created
+# object; that is why there is a "plus" operation and not an "add" operation;
+#
+# note:
+#   below is a semi-accurate list of functions in each SkewField-ish class;
+#   a class does not necessarily have every function in the list;
+#
+#   __init__        constructor
+#   __str__         string representation; for pretty printing
+#   __repr__        more official string representation
+#   __hash__        so class can be used as a dict key
+#   __cmp__         defines an ordering on the class
+#   deepcopy        so we don't share references
+#   canonize        puts object into canonical form; simplifies some
+#   zero            the zero element of that class type
+#   one             the one element of that class type
+#   isZero          for identifying if object is a zero
+#   isOne           for identifying if object is a one
+#   isScalar        for identifying if object is a multiple of one
+#   asOneAbove      letter => word => sentence => monomial => polynomial
+#   asPoly          object copy promoted to a polynomial
+#   increasedSubs   copy with all component letter subscripts increased
+#   plus            result of addition operation
+#   times           result of multiplication operation
+#   aInv            additive inverse
+#   mInv            mulitiplicative inverse
 #
 
 
-FileVersion = "0.02"
+FileVersion = "0.03"
 
 
 import sys
 import getopt
 import re
 import collections
-#from collections import Counter
 
 
 # to help overcome our heartfelt loss of the treasured Counter class...
@@ -47,10 +54,12 @@ def updateCounts(counter, otherGuy):
 
     if isinstance(otherGuy, dict):
         for key, value in otherGuy.items():
+            key = key.deepcopy()
             counter[key] = counter.get(key, 0) + value;
     # else assume list/tuple/set
     else:
         for key in otherGuy:
+            key = key.deepcopy()
             counter[key] = counter.get(key, 0) + 1;
 
     # step2: simplify by removing zero-valued items
@@ -69,11 +78,11 @@ class SkewFieldLetter():
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], str):
-            m = re.match("([a-z]+)_?(-?\d*)", args[0].strip())
-            if m == None:
+            match = re.match("^([a-z]+)_?(-?\d*)$", args[0].replace(" ", ""))
+            if match == None:
                 raise ValueError("bad SkewFieldLetter() args " + str(args))
             else:
-                (self.alpha, subAsString) = m.groups(0)
+                (self.alpha, subAsString) = match.groups(0)
                 self.sub = int(subAsString)
         elif len(args) == 2:
             self.alpha = str(args[0])    # string of alphabetic chars
@@ -114,6 +123,10 @@ class SkewFieldLetter():
         return 0
 
 
+    def deepcopy(self):
+        return SkewFieldLetter(self.alpha, self.sub)
+
+
     def isZero(self):
         return False
 
@@ -126,16 +139,16 @@ class SkewFieldLetter():
         return False
 
 
-    def deepcopy(self):
-        return SkewFieldLetter(self.alpha, self.sub)
-
-
     def asWord(self):
         return SkewFieldWord([self])
 
 
     def asPoly(self):
         return self.asWord().asPoly()
+
+
+    def increasedSubs(self, increment):
+        return SkewFieldLetter(self.alpha, self.sub + increment)
 
 
 class SkewFieldWord():
@@ -152,12 +165,12 @@ class SkewFieldWord():
         self.letterCtr = dict() # key is SkewFieldLetter, value is power
 
         if isinstance(letters, str):
-            letters = letters.strip()
+            letters = letters.replace(" ", "")
 
-            if letters == "1":
+            if letters == "" or letters == "1":
                 self = SkewFieldWord.one()
             else:
-                for letterWithPower in letters.split(" * "):
+                for letterWithPower in letters.split("*"):
                     (letterStr, power) = letterWithPower.split("^")
 
                     # if no exponentation symbol, letter implicitly raised to 0
@@ -226,7 +239,7 @@ class SkewFieldWord():
 
     def deepcopy(self):
         cpy = SkewFieldWord()
-        for letter, power in self.items():
+        for letter, power in self.letterCtr.items():
             cpy.letterCtr[letter.deepcopy()] = int(power)
         return cpy
 
@@ -283,7 +296,7 @@ class SkewFieldWord():
         product.canonize() # probably not needed
         return product
 
-    def mInverse(self):
+    def mInv(self):
         inverse = SkewFieldWord()
         for letter, power in self.letterCtr.items():
             inverse.letterCtr[letter] = -power
@@ -307,18 +320,16 @@ class SkewFieldSentence():
         self.wordCtr = dict() # key is SkewFieldWord, value is coef
 
         if isinstance(words, str):
-            words = words.strip()
-            if words == "0":
-                self = SkewFieldSentence.zero()
-            elif words == "1":
-                self = SkewFieldSentence.one()
-            else:
-                for coefWithWord in words.split(" + "):
-                    (coef, wordStr) = coefWithWord.split(" * ", 1)
-                    updateCounts(
-                        self.wordCtr,
-                        { SkewFieldWord(wordStr) : int(coef) }
-                    )
+            for coefWithWord in words.split("+"):
+                splitResults = coefWithWord.split("*", 1)
+
+                coef = splitResults[0]
+                if len(splitResults) > 1:
+                    word = SkewFieldWord(splitResults[1])
+                else:
+                    word = SkewFieldWord.one()
+
+                updateCounts(self.wordCtr, { word : int(coef) })
         else:
             updateCounts(self.wordCtr, words)
 
@@ -326,12 +337,18 @@ class SkewFieldSentence():
 
 
     def __str__(self):
+        if self.isZero():
+            return "0"
         if self.isScalar():
             return str(self.wordCtr.values()[0])
 
         wordStrs = list()
         for word in sorted(self.wordCtr.keys()):
-            wordStrs.append(str(self.wordCtr[word]) + " * " + str(word))
+            coef = self.wordCtr[word]
+            if word.isOne():
+                wordStrs.append(str(coef))
+            else:
+                wordStrs.append(str(coef) + " * " + str(word))
         return " + ".join(wordStrs)
 
 
@@ -372,8 +389,8 @@ class SkewFieldSentence():
 
     def deepcopy(self):
         cpy = SkewFieldSentence()
-        for word, coef in self.items():
-            cpy.wordCtr[word.deepcopy()] = coef
+        for word, coef in self.wordCtr.items():
+            cpy.wordCtr[word.deepcopy()] = int(coef)
         return cpy
 
 
@@ -437,11 +454,10 @@ class SkewFieldSentence():
                     product.wordCtr,
                     { selfWord.times(otherWord) : selfWordCoeff * otherWordCoeff})
         product.canonize();
-        print("    sentence.times: " + str(product))
         return product
 
 
-    def aInverse(self):
+    def aInv(self):
         inverse = SkewFieldSentence()
         for word, coef in self.wordCtr.items():
             inverse.wordCtr[word] = -coef
@@ -464,9 +480,38 @@ class SkewFieldMonomial():
         self.canonize()
 
 
+    def __init__(self, *args, **kwargs):
+        if len(args) == 1 and isinstance(args[0], str):
+            # looks scary, but just a check for (sentence)/(sentence)*T^power
+            match = re.match(
+                "^ \( (.*) \)  /  \( (.*) \) \* T \^ (-? \d+) $",
+                args[0].replace(" ", ""),
+                re.VERBOSE,
+            )
+
+            if match == None:
+                raise ValueError("bad SkewFieldMonomial() args " + str(args))
+            else:
+                (numerStr, denomStr, tpowerStr) = match.groups(0)
+
+                self.numer = SkewFieldSentence(numerStr)
+                self.denom = SkewFieldSentence(denomStr)
+                self.tpower = int(tpowerStr)
+
+        elif len(args) == 3:
+            self.numer = args[0].deepcopy() # type SkewFieldSentence
+            self.denom = args[1].deepcopy() # type SkewFieldSentence
+            self.tpower = int(args[2])      # type integer
+
+        else:
+            raise ValueError("bad SkewFieldMonomial() args " + str(args))
+
+        self.canonize()
+
+
     def __str__(self):
-        return str(self.numer) + " / " + str(self.denom) \
-            + " * T^" + str(self.tpower)
+        return "(" + str(self.numer) + ") / (" + str(self.denom) \
+            + ") * T^" + str(self.tpower)
 
 
     def __repr__(self):
@@ -537,6 +582,12 @@ class SkewFieldMonomial():
         return self == SkewFieldMonomial.one()
 
 
+    def isScalar(self):
+        return (self.numer == SkewFieldSentence.isScalar()
+            and self.denom == SkewFieldSentence.isScalar()
+            and self.tpower == 0)
+
+
     # warning: returns SkewFieldPolynomial
     def plus(self, other):
         return SkewFieldPolynomial([self, other])
@@ -557,22 +608,19 @@ class SkewFieldMonomial():
         product.denom = self.denom.times(
             other.denom.increasedSubs(self.tpower))
 
-        print("    mono.times:")
-        print("        beforeCanon: " + str(product))
         product.canonize()
-        print("        afterCanon:  " + str(product))
         return product
 
 
-    def aInverse(self):
+    def aInv(self):
         return SkewFieldMonomial(
-            self.numer.aInverse(),
+            self.numer.aInv(),
             self.denom,
             self.tpower,
         )
 
 
-    def mInverse(self):
+    def mInv(self):
         return SkewFieldMonomial(
             self.denom.increasedSubs(-self.tpower),
             self.numer.increasedSubs(-self.tpower),
@@ -598,13 +646,12 @@ def main(argv=None):
     ltrA0 = SkewFieldLetter("a", 0)
     print("ltrA0 = " + str(ltrA0))
 
+    # basic construction-representation test
     assert(str(ltrA0) == ltrA0Str)
 
     ltrA0Again = SkewFieldLetter(ltrA0Str)
     ltrA1 = SkewFieldLetter("a_1")
     ltrB0 = SkewFieldLetter("b_0")
-
-    blah = ltrA0.deepcopy()
 
     # test comparisons
     assert(ltrA0 == ltrA0Again)
@@ -614,7 +661,16 @@ def main(argv=None):
     assert(ltrA1 < ltrB0)
     assert(ltrB0 > ltrA1)
 
+    # test basic operations
+    assert(ltrA0.increasedSubs(1) == ltrA1)
+
+    # test operations did not violate immutability
+    assert(ltrA0Again == ltrA0)
+    assert(str(ltrA0Again) == str(ltrA0))
+
     print("WORD ##############################################################")
+
+    # basic construction-representation test
 
     wrd1Str = "a_0^1 * b_1^2"
 
@@ -624,21 +680,24 @@ def main(argv=None):
         SkewFieldLetter("b", 1),
     ]
 
-    # make word with list of letterCtr
     wrd1 = SkewFieldWord(ltrs1)
     print("wrd1 = " + str(wrd1))
 
     assert(str(wrd1) == wrd1Str)
     assert(wrd1 == wrd1)
 
+    # test identity comparison
     wrd1Again = SkewFieldWord(wrd1Str)
     print("wrd1Again = " + str(wrd1Again))
     assert(wrd1 == wrd1Again)
 
+    # test increasedSubs
     wrd2Str = "a_2^1 * b_3^2"
     wrd2 = wrd1.increasedSubs(2)
     print("wrd2 = " + str(wrd2))
     assert(str(wrd2) == wrd2Str)
+
+    # test alternate constructor and canonization
 
     wrd3Str = "b_1^3 * c_2^1"
 
@@ -652,13 +711,17 @@ def main(argv=None):
     print("wrd3 = " + str(wrd3))
     assert(str(wrd3) == wrd3Str)
 
+    # test mInv and times a bit
+
     wrd1MInvStr = "a_0^-1 * b_1^-2"
-    wrd1MInv = wrd1.mInverse()
+    wrd1MInv = wrd1.mInv()
     print("wrd1MInv = " + str(wrd1MInv))
     assert(str(wrd1MInv) == wrd1MInvStr)
-    assert(wrd1 == wrd1.mInverse().mInverse())
+    assert(wrd1 == wrd1.mInv().mInv())
     print("wrd1 * wrd1MInv = " + str(wrd1.times(wrd1MInv)))
     assert(SkewFieldWord.one() == wrd1.times(wrd1MInv))
+
+    # test times a bit more
 
     wrd4Str = "a_0^1 * b_1^5 * c_2^1"
 
@@ -666,32 +729,122 @@ def main(argv=None):
     print("wrd1 * wrd3 = wrd4 = " + str(wrd4))
     assert(str(wrd4) == wrd4Str)
 
+    wrd5Str = "a_0^1 * b_1^5 * c_2^1"
+
+    wrd5 = wrd3.times(wrd1)
+    print("wrd3 * wrd1 = wrd5 = " + str(wrd5))
+    assert(str(wrd5) == wrd5Str)
+
     print("SENTENCE ##########################################################")
+
+    # test wrd+wrd => sentence
 
     snt1Str = "1 * a_0^1 + 1 * b_0^1"
     snt1 = SkewFieldWord("a_0^1").plus(SkewFieldWord("b_0^1"))
     print("wrdA + wrdB = snt1 = " + str(snt1))
     assert(str(snt1) == snt1Str)
 
-    return 1
-    #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    snt1Again = SkewFieldSentence(snt1Str)
+    assert(snt1 == snt1Again)
+    assert(str(snt1Again) == snt1Str)
 
-    sentence2 = sentence1.times(sentence1)
-    print("sentence1 * sentence1 = sentence2 = " + str(sentence2))
+    # test some scalar sentences
 
-    mono1 = SkewFieldMonomial(sentence2, sentence1, 2)
+    snt2Str = "2"
+    snt2 = SkewFieldSentence(snt2Str)
+    print("snt2 = " + str(snt2))
+    assert(str(snt2) == snt2Str)
+
+    snt3Str = "3 + 4 * a_0^5 + 6 * a_0^7 * b_1^8"
+    snt3 = SkewFieldSentence(snt3Str)
+    print("snt3 = " + str(snt3))
+    assert(str(snt3) == snt3Str)
+
+    assert(not snt1.isScalar())
+    assert(snt2.isScalar())
+    assert(not snt3.isScalar())
+
+    # test increased subs
+
+    snt99Str = "3 + 4 * a_-2^5 + 6 * a_-2^7 * b_-1^8"
+    snt99 = snt3.increasedSubs(-2)
+    print("snt99 = " + str(snt99))
+    assert(str(snt99) == snt99Str)
+
+    # test aInv and plus a bit
+
+    snt3AInvStr = "-3 + -4 * a_0^5 + -6 * a_0^7 * b_1^8"
+
+    snt3AInv = snt3.aInv()
+    print("snt3AInv = " + str(snt3AInv))
+    assert(str(snt3AInv) == snt3AInvStr)
+
+    snt4Str = "0"
+
+    snt4 = snt3.plus(snt3AInv)
+    print("snt3 + snt3AInv = snt4 = " + str(snt4))
+    assert(str(snt4) == snt4Str)
+
+    # test plus a bit more
+
+    snt5Str = "2 + 3 * b_0^1 + 4 * c_0^1"
+    snt5 = SkewFieldSentence(snt5Str)
+    print("snt5 = " + str(snt5))
+    assert(str(snt5) == snt5Str)
+
+    snt6Str = "2 + 1 * a_0^1 + 4 * b_0^1 + 4 * c_0^1"
+    snt6 = snt1.plus(snt5)
+    print("snt6 = " + str(snt6))
+    assert(str(snt6) == snt6Str)
+
+    # test commutivity of plus
+    assert(snt1.plus(snt5) == snt5.plus(snt1))
+
+    # test times - associativity and commutivity
+
+    snt7Str = "3 + 5 * a_0^7"
+    snt7 = SkewFieldSentence(snt7Str)
+    print("snt7 = " + str(snt7))
+    assert(str(snt7) == snt7Str)
+
+    snt8Str = "6 * a_0^1 + 10 * a_0^7 * b_0^1 + 10 * a_0^8 + 6 * b_0^1"
+    snt8 = snt2.times(snt1).times(snt7)
+    print("(snt2 * snt1) * snt7 = snt8 = " + str(snt8))
+    assert(str(snt8) == snt8Str)
+
+    snt9 = snt2.times(snt1.times(snt7))
+    print("snt2 * (snt1 * snt7) = snt9 = " + str(snt9))
+    assert(snt9 == snt8)
+
+    snt10 = snt7.times(snt2.times(snt1))
+    print("snt7 * snt2 * snt1 = snt10 = " + str(snt10))
+    assert(snt10 == snt8)
+
+    print("MONOMIAL ##########################################################")
+
+    # basic construction-representation test
+    mono1Str = "(" + str(snt1) + ") / (" + str(snt7) + ") * T^-2"
+    mono1 = SkewFieldMonomial(snt1, snt7, -2)
     print("mono1 = " + str(mono1))
+    assert(str(mono1) == mono1Str)
+
+    mono2 = SkewFieldMonomial(mono1Str)
+    assert(str(mono2) == mono1Str)
+
+
+    return 1
+    # TESTED ONLY TO THIS POINT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     # TODO: uncomment when have poly class
-    #print("mono1 + -mono1 = " + str(mono1.plus(mono1.aInverse())))
+    #print("mono1 + -mono1 = " + str(mono1.plus(mono1.aInv())))
 
     mono2 = SkewFieldMonomial(sentence1, SkewFieldSentence.one(), 3)
     print("mono2  = " + str(mono2))
 
-    mono2MultInv = mono2.mInverse()
+    mono2MultInv = mono2.mInv()
     print("mono2MultInv  = " + str(mono2MultInv))
 
-    print("mono2 * mono2.mInv() = " + str(mono2.times(mono2.mInverse())))
+    print("mono2 * mono2.mInv() = " + str(mono2.times(mono2.mInv())))
     print("mono2 * mono2MultInv = " + str(mono2.times(mono2MultInv)))
 
     return 0
