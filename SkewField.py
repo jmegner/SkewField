@@ -38,7 +38,7 @@
 #
 
 
-FileVersion = "0.04"
+FileVersion = "0.05"
 
 
 import sys
@@ -727,21 +727,25 @@ class SkewFieldPolynomial():
         pass
 
     def deepcopy(self):
-        pass
+        return SkewFieldPolynomial(self.monoDict.values())
 
     def canonize(self):
-        pass
+        # remove monomials that are zero
+        for tpower, mono in self.monoDict.items():
+            if mono.isZero():
+                self.monoDict.pop(tpower)
 
     def zero(self):
-        pass
+        return SkewFieldPolynomial()
     zero = staticmethod(zero)
 
     def one(self):
-        pass
+        return SkewFieldPolynomial([SkewFieldMonomial.one])
     one = staticmethod(one)
 
     def isZero(self):
-        pass
+        # TODO: rewrite to 'return self == SkewFieldPolynomial.zero()' once __cmp__ written
+        return len(self.monoDict) == 0
 
     def isOne(self):
         pass
