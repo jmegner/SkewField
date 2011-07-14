@@ -38,7 +38,7 @@
 #
 
 
-FileVersion = "0.05"
+FileVersion = "0.06"
 
 
 import sys
@@ -759,10 +759,11 @@ class SkewFieldPolynomial():
     def increasedSubs(self):
         pass
 
-    def plus(self):
-        pass
+    def plus(self, other):
+        return SkewFieldPolynomial(
+            self.monoDict.values() + other.monoDict.values())
 
-    def times(self):
+    def times(self, other):
         pass
 
     def aInv(self):
