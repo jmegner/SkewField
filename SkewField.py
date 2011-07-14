@@ -38,7 +38,7 @@
 #
 
 
-FileVersion = "0.03"
+FileVersion = "0.04"
 
 
 import sys
@@ -82,18 +82,19 @@ class SkewFieldLetter():
             if match == None:
                 raise ValueError("bad SkewFieldLetter() args " + str(args))
             else:
-                (self.alpha, subAsString) = match.groups(0)
-                self.sub = int(subAsString)
+                (alphaStr, subStr) = match.groups(0)
+                self.alpha = SkewFieldLetter.alphaAsInt(alphaStr)
+                self.sub = int(subStr)
         elif len(args) == 2:
-            self.alpha = str(args[0])    # string of alphabetic chars
-            self.sub = int(args[1])      # integer subscript
+            self.alpha = SkewFieldLetter.alphaAsInt(args[0])
+            self.sub = int(args[1])
         else:
             raise ValueError("bad SkewFieldLetter() args " + str(args))
 
 
     # so class can be prettily printed
     def __str__(self):
-        return str(self.alpha) + "_" + str(self.sub)
+        return SkewFieldLetter.alphaAsStr(self.alpha) + "_" + str(self.sub)
 
 
     def __repr__(self):
@@ -108,10 +109,6 @@ class SkewFieldLetter():
     # so class is sortable by the 'sorted' function
     # simple comparison based alpha length, then alpha value, then sub
     def __cmp__(self, other):
-        if len(self.alpha) < len(other.alpha):
-            return -1
-        if len(self.alpha) > len(other.alpha):
-            return 1
         if self.alpha < other.alpha:
             return -1
         if self.alpha > other.alpha:
@@ -149,6 +146,47 @@ class SkewFieldLetter():
 
     def increasedSubs(self, increment):
         return SkewFieldLetter(self.alpha, self.sub + increment)
+
+
+    def alphaAsInt(alpha):
+        if isinstance(alpha, int):
+            return alpha
+        elif isinstance(alpha, str):
+
+            if re.match("^[a-z]+$", alpha) == None:
+                raise ValueError("can not use arg " + str(alpha))
+
+            intRep = -1;
+            for char in alpha:
+                intRep = (intRep + 1) * 26 + (ord(char) - ord("a"))
+
+            return intRep
+
+        else:
+            raise ValueError("can not use arg " + str(alpha))
+    alphaAsInt = staticmethod(alphaAsInt)
+
+
+    def alphaAsStr(alpha):
+        if isinstance(alpha, int):
+            strRep = ""
+
+            while True:
+                remainder = alpha % 26
+                strRep = chr(remainder + ord("a")) + strRep
+                
+                alpha = alpha // 26 - 1
+
+                if alpha == -1:
+                    break
+
+            return strRep
+
+        elif isinstance(alpha, str):
+            return str(alpha)
+        else:
+            raise ValueError("can not use arg " + str(alpha))
+    alphaAsStr = staticmethod(alphaAsStr)
 
 
 class SkewFieldWord():
@@ -467,18 +505,8 @@ class SkewFieldSentence():
 class SkewFieldMonomial():
     # convention is for T to be on right-hand side and the SkewFieldSentence
     # numerator and denominator to be on the left-hand side
-
-    def __init__(
-            self,
-            numer = SkewFieldSentence.zero(),
-            denom = SkewFieldSentence.one(),
-            tpower = 0,
-    ):
-        self.numer = numer      # type SkewFieldSentence
-        self.denom = denom      # type SkewFieldSentence
-        self.tpower = tpower    # type integer
-        self.canonize()
-
+    #
+    # example: (2 * a_0^2) / (3 * b_1^3) * T^3
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], str):
@@ -553,7 +581,6 @@ class SkewFieldMonomial():
         if self.numer == self.denom:
             self.numer = SkewFieldSentence.one()
             self.denom = SkewFieldSentence.one()
-            self.tpower = 0
 
 
     def zero():
@@ -586,6 +613,22 @@ class SkewFieldMonomial():
         return (self.numer == SkewFieldSentence.isScalar()
             and self.denom == SkewFieldSentence.isScalar()
             and self.tpower == 0)
+
+
+    def asOneAbove(self):
+        return SkewFieldPolynomial([self])
+
+
+    def asPoly(self):
+        return self.asOneAbove()
+
+
+    def increasedSubs(self, increment):
+        return SkewFieldMonomial(
+            self.numer.increasedSubs(increment),
+            self.denom.increasedSubs(increment),
+            self.tpower,
+        )
 
 
     # warning: returns SkewFieldPolynomial
@@ -626,6 +669,100 @@ class SkewFieldMonomial():
             self.numer.increasedSubs(-self.tpower),
             -self.tpower,
         )
+
+
+    # for easy addition of self's numer/denom to other's numer/denom
+    # if n1/d1 + n2/d2 = (n1*d2 + n2*d1) / (d1 * d2)
+    def plusSentencePart(self, other):
+        return SkewFieldMonomial(
+            self.numer.times(other.denom).plus(other.denom.times(self.numer)),
+            self.denom.times(other.denom),
+            self.tpower)
+
+
+class SkewFieldPolynomial():
+    # basically a sum of differently tpowered monomials
+    # self.monoDict is a dict with tpowers as keys and monomials as values
+    # so, yes, there is some redundancy with the tpower also in the monomial
+
+
+    # monos argument can be str, tuple, list, set, or dict
+    def __init__(self, monos = []):
+        self.monoDict = dict() # key is tpower, value is monomial
+
+        if isinstance(monos, str):
+            raise ValueError("poly str constructor not supported yet")
+
+        # else assume monos is a collection of monomials
+        else:
+            # iterate to add the monos into our polynomial
+            for otherMono in monos:
+
+                # if already have mono of that tpower, must add them together
+                if otherMono.tpower in self.monoDict:
+                    myMono = self.monoDict.pop(otherMono.tpower)
+                    self.monoDict[otherMono.tpower] \
+                        = myMono.plusSentencePart(otherMono)
+
+                # else don't have mono of that tpower; simple insert
+                else:
+                    self.monoDict[otherMono.tpower] = otherMono.deepcopy();
+
+        self.canonize()
+
+
+    def __str__(self):
+        # temporarily using "++" as super-plus operator to make it more apparent
+        # that we are adding polys
+        return " ++ ".join(map(str, self.monoDict.values()))
+
+
+    def __repr__(self):
+        return "SkewFieldPolynomial(\"" + str(self) + "\")"
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __cmp__(self):
+        pass
+
+    def deepcopy(self):
+        pass
+
+    def canonize(self):
+        pass
+
+    def zero(self):
+        pass
+    zero = staticmethod(zero)
+
+    def one(self):
+        pass
+    one = staticmethod(one)
+
+    def isZero(self):
+        pass
+
+    def isOne(self):
+        pass
+
+    def isScalar(self):
+        pass
+
+    def asPoly(self):
+        return self.deepcopy()
+
+    def increasedSubs(self):
+        pass
+
+    def plus(self):
+        pass
+
+    def times(self):
+        pass
+
+    def aInv(self):
+        pass
 
 
 ################################################################################
@@ -823,29 +960,53 @@ def main(argv=None):
     print("MONOMIAL ##########################################################")
 
     # basic construction-representation test
+
+    # (1 * a_0^1 + 1 * b_0^1) / (3 + 5 * a_0^7) * T^-2
     mono1Str = "(" + str(snt1) + ") / (" + str(snt7) + ") * T^-2"
     mono1 = SkewFieldMonomial(snt1, snt7, -2)
     print("mono1 = " + str(mono1))
     assert(str(mono1) == mono1Str)
 
-    mono2 = SkewFieldMonomial(mono1Str)
-    assert(str(mono2) == mono1Str)
+    mono1Again = SkewFieldMonomial(mono1Str)
+    assert(str(mono1Again) == mono1Str)
 
+    # test mInv and test times a bit
+
+    mono1MInvStr = "(3 + 5 * a_2^7) / (1 * a_2^1 + 1 * b_2^1) * T^2"
+    mono1MInv = mono1.mInv()
+    print("mono1.mInv() = mono1Inv = " + str(mono1MInv))
+    assert(str(mono1MInv) == mono1MInvStr)
+
+    monoOneStr = str(SkewFieldMonomial.one())
+
+    mono2 = mono1.times(mono1MInv)
+    print("mono1 * mono1MInv = mono2 = " + str(mono2))
+    assert(str(mono2) == monoOneStr)
+
+    mono3 = mono1MInv.times(mono1)
+    print("mono1MInv * mono1 = mono3 = " + str(mono3))
+    assert(str(mono3) == monoOneStr)
+
+    # test times some more
+
+    mono4Str = "(" + str(snt1) + ") / (1) * T^3"
+    mono4 = SkewFieldMonomial(snt1, SkewFieldSentence.one(), 3)
+    print("mono4 = " + str(mono4))
+    assert(str(mono4) == mono4Str)
+
+    mono5Str = "(" + str(snt1.times(snt1)) + ") / (" + str(snt7) + ") * T^1"
+    mono5 = mono1.times(mono4.increasedSubs(2))
+    print("mono5Str = " + str(mono5Str))
+    print("mono1 * mono4.incSubs(2) = mono5 = " + str(mono5))
+    assert(str(mono5) == mono5Str)
 
     return 1
     # TESTED ONLY TO THIS POINT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    # TODO: uncomment when have poly class
-    #print("mono1 + -mono1 = " + str(mono1.plus(mono1.aInv())))
+    print("POLYNOMIAL ########################################################")
 
-    mono2 = SkewFieldMonomial(sentence1, SkewFieldSentence.one(), 3)
-    print("mono2  = " + str(mono2))
-
-    mono2MultInv = mono2.mInv()
-    print("mono2MultInv  = " + str(mono2MultInv))
-
-    print("mono2 * mono2.mInv() = " + str(mono2.times(mono2.mInv())))
-    print("mono2 * mono2MultInv = " + str(mono2.times(mono2MultInv)))
+    poly1 = SkewFieldPolynomial([mono1, mono2, mono1])
+    print("poly1 = " + str(poly1))
 
     return 0
 
