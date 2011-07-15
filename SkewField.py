@@ -38,7 +38,7 @@
 #
 
 
-FileVersion = "0.07"
+FileVersion = "0.08"
 
 
 import sys
@@ -731,7 +731,7 @@ class SkewFieldPolynomial():
     def __str__(self):
         # temporarily using "++" as super-plus operator to make it more apparent
         # that we are adding polys
-        return " ++ ".join(map(str, self.asMonoList())) #reversed(sorted(self.monoDict.values()))))
+        return " ++ ".join(map(str, self.asMonoList()))
 
 
     def __repr__(self):
@@ -793,8 +793,8 @@ class SkewFieldPolynomial():
 
 
     def isScalar(self):
-        return (len(self.monoDict) == 0) \
-               or (len(self.monoDict) == 1 and self.monoDict.keys()[0].isOne())
+        return self.isZero() \
+           or (len(self.monoDict) == 1 and self.monoDict.values()[0].isScalar())
 
 
     def asPoly(self):
@@ -857,6 +857,7 @@ class SkewFieldPolynomial():
             numeratorDegree = numerator.degree()
 
         return SkewFieldPolynomial(result)
+
 
 ################################################################################
 # MAIN
