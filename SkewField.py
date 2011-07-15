@@ -38,13 +38,14 @@
 #
 
 
-FileVersion = "0.06"
+FileVersion = "0.07"
 
 
 import sys
 import getopt
 import re
 import collections
+import math
 
 
 # to help overcome our heartfelt loss of the treasured Counter class...
@@ -68,13 +69,15 @@ def updateCounts(counter, otherGuy):
             counter.pop(key)
 
 
+################################################################################
+# SkewFieldLetter is an alphabetical identifier and a subscript
+# this representation can neither be a zero nor a one
+#
+# example: b_1
+#   'b' is the alpha
+#   '1' is the sub
+#
 class SkewFieldLetter():
-    # SkewFieldLetter is an alphabetical identifier and a subscript
-    # this representation can neither be a zero nor a one
-    #
-    # example: b_1
-    #   'b' is the alpha
-    #   '1' is the sub
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], str):
@@ -92,7 +95,6 @@ class SkewFieldLetter():
             raise ValueError("bad SkewFieldLetter() args " + str(args))
 
 
-    # so class can be prettily printed
     def __str__(self):
         return SkewFieldLetter.alphaAsStr(self.alpha) + "_" + str(self.sub)
 
@@ -101,13 +103,10 @@ class SkewFieldLetter():
         return "SkewFieldLetter(\"" + str(self) + "\")"
 
 
-    # so class can be a key in a dict or Counter object
     def __hash__(self):
         return hash(str(self))
 
 
-    # so class is sortable by the 'sorted' function
-    # simple comparison based alpha length, then alpha value, then sub
     def __cmp__(self, other):
         if self.alpha < other.alpha:
             return -1
@@ -189,14 +188,16 @@ class SkewFieldLetter():
     alphaAsStr = staticmethod(alphaAsStr)
 
 
+################################################################################
+# SkewFieldWord is the product of SkewFieldLetters;
+# a SkewFieldWord can be 1 (empty letterCtr), but it can not be zero;
+# for a zero, you need to go to the level of SkewFieldSentence
+#
+# example: b_1^2 * c_2;
+#   'b_1' and 'c_2' are the letters (stored as letterCtr keys)
+#   2 and 1 are the powers (storted as letterCtr values)
+#
 class SkewFieldWord():
-    # SkewFieldWord is the product of SkewFieldLetters;
-    # a SkewFieldWord can be 1 (empty letterCtr), but it can not be zero;
-    # for a zero, you need to go to the level of SkewFieldSentence
-    #
-    # example: b_1^2 * c_2;
-    #   'b_1' and 'c_2' are the letters (stored as letterCtr keys)
-    #   2 and 1 are the powers (storted as letterCtr values)
 
     # letters argument can be str, tuple, list, set, or dict
     def __init__(self, letters = []):
@@ -251,7 +252,8 @@ class SkewFieldWord():
         selfSortedLetters = sorted(self.letterCtr.keys())
         otherSortedLetters = sorted(other.letterCtr.keys())
 
-        # zip takes care of differently sized lists by stopping at end of shorter list
+        # zip takes care of differently sized lists by stopping at end of
+        # shorter list
         for selfLetter, otherLetter in zip(selfSortedLetters, otherSortedLetters):
             if selfLetter < otherLetter:
                 return -1
@@ -341,16 +343,18 @@ class SkewFieldWord():
         return inverse
 
 
+################################################################################
+# SkewFieldSentence is the sum of SkewFieldWords;
+# can also be thought of as a polynomial of SkewFieldLetters
+#
+# SkewFieldSentence can be a one (identity word with coefficient = 1)
+# SkewFieldSentence can be a zero (empty wordCtr)
+#
+# example: 3 * a_0^1 + 2 * b_1^2 * c_2^1 ;
+#   'a_0^1' and 'b_1^2 * c_2^1' are the words (stored as wordCtr keys)
+#   3 and 2 are the coefficients (storted as wordCtr values)
+#
 class SkewFieldSentence():
-    # SkewFieldSentence is the sum of SkewFieldWords;
-    # can also be thought of as a polynomial of SkewFieldLetters
-    #
-    # SkewFieldSentence can be a one (identity word with coefficient = 1)
-    # SkewFieldSentence can be a zero (empty wordCtr)
-    #
-    # example: 3 * a_0^1 + 2 * b_1^2 * c_2^1 ;
-    #   'a_0^1' and 'b_1^2 * c_2^1' are the words (stored as wordCtr keys)
-    #   3 and 2 are the coefficients (storted as wordCtr values)
 
 
     # words argument can be str, tuple, list, set, or dict
@@ -402,7 +406,8 @@ class SkewFieldSentence():
         selfSortedWords = sorted(self.wordCtr.keys())
         otherSortedWords = sorted(other.wordCtr.keys())
 
-        # zip takes care of differently sized lists by stopping at end of shorter list
+        # zip takes care of differently sized lists by stopping at end of
+        # shorter list
         for selfWord, otherWord in zip(selfSortedWords, otherSortedWords):
             if selfWord < otherWord:
                 return -1
@@ -502,11 +507,15 @@ class SkewFieldSentence():
         return inverse
 
 
+################################################################################
+# SkewFieldMonomial is a sentence-fraction times T to some power
+#
+# convention is for T to be on right-hand side and the SkewFieldSentence
+# numerator and denominator to be on the left-hand side
+#
+# example: (2 * a_0^2) / (3 * b_1^3) * T^3
+#
 class SkewFieldMonomial():
-    # convention is for T to be on right-hand side and the SkewFieldSentence
-    # numerator and denominator to be on the left-hand side
-    #
-    # example: (2 * a_0^2) / (3 * b_1^3) * T^3
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], str):
@@ -672,18 +681,26 @@ class SkewFieldMonomial():
 
 
     # for easy addition of self's numer/denom to other's numer/denom
-    # if n1/d1 + n2/d2 = (n1*d2 + n2*d1) / (d1 * d2)
+    # if common denoms, use equation n1/d + n2/d = (n1 + n2) / d
+    # else use equation n1/d1 + n2/d2 = (n1*d2 + n2*d1) / (d1 * d2)
     def plusSentencePart(self, other):
+        if self.denom == other.denom:
+            return SkewFieldMonomial(
+                self.numer.plus(other.numer),
+                self.denom,
+                self.tpower)
         return SkewFieldMonomial(
             self.numer.times(other.denom).plus(other.denom.times(self.numer)),
             self.denom.times(other.denom),
             self.tpower)
 
 
+################################################################################
+# SkewFieldPolynomial is basically a sum of differently tpowered monomials
+# self.monoDict is a dict with tpowers as keys and monomials as values
+# so, yes, there is some redundancy with the tpower also in the monomial
+#
 class SkewFieldPolynomial():
-    # basically a sum of differently tpowered monomials
-    # self.monoDict is a dict with tpowers as keys and monomials as values
-    # so, yes, there is some redundancy with the tpower also in the monomial
 
 
     # monos argument can be str, tuple, list, set, or dict
@@ -714,7 +731,7 @@ class SkewFieldPolynomial():
     def __str__(self):
         # temporarily using "++" as super-plus operator to make it more apparent
         # that we are adding polys
-        return " ++ ".join(map(str, self.monoDict.values()))
+        return " ++ ".join(map(str, self.asMonoList())) #reversed(sorted(self.monoDict.values()))))
 
 
     def __repr__(self):
@@ -723,11 +740,32 @@ class SkewFieldPolynomial():
     def __hash__(self):
         return hash(str(self))
 
-    def __cmp__(self):
-        pass
+    def __cmp__(self, other):
+        if self.degree() < other.degree():
+            return -1
+        if self.degree() > other.degree():
+            return 1
+
+        selfMonoList = self.asMonoList()
+        otherMonoList = other.asMonoList()
+
+        for selfMono, otherMono in zip(selfMonoList, otherMonoList):
+            if selfMono < otherMono:
+                return -1
+            if selfMono > otherMono:
+                return 1
+
+        if len(selfMonoList) < len(otherMonoList):
+            return -1
+        if len(selfMonoList) > len(otherMonoList):
+            return 1
+
+        return 0
+
 
     def deepcopy(self):
         return SkewFieldPolynomial(self.monoDict.values())
+
 
     def canonize(self):
         # remove monomials that are zero
@@ -735,40 +773,90 @@ class SkewFieldPolynomial():
             if mono.isZero():
                 self.monoDict.pop(tpower)
 
-    def zero(self):
+
+    def zero():
         return SkewFieldPolynomial()
     zero = staticmethod(zero)
 
-    def one(self):
-        return SkewFieldPolynomial([SkewFieldMonomial.one])
+
+    def one():
+        return SkewFieldPolynomial([SkewFieldMonomial.one()])
     one = staticmethod(one)
 
+
     def isZero(self):
-        # TODO: rewrite to 'return self == SkewFieldPolynomial.zero()' once __cmp__ written
-        return len(self.monoDict) == 0
+        return self == SkewFieldPolynomial.zero()
+
 
     def isOne(self):
-        pass
+        return self == SkewFieldPolynomial.one()
+
 
     def isScalar(self):
-        pass
+        return (len(self.monoDict) == 0) \
+               or (len(self.monoDict) == 1 and self.monoDict.keys()[0].isOne())
+
 
     def asPoly(self):
         return self.deepcopy()
 
-    def increasedSubs(self):
-        pass
+
+    def asMonoList(self):
+        return reversed(sorted(self.monoDict.values()))
+
+
+    def increasedSubs(self, increment):
+        result = SkewFieldPolynomial()
+        for power, mono in self.monoDict.items():
+            result.monoDict[power] = mono.increasedSubs(increment)
+        return result
+
 
     def plus(self, other):
         return SkewFieldPolynomial(
             self.monoDict.values() + other.monoDict.values())
 
+
     def times(self, other):
-        pass
+        product = []
+        for selfMono in self.monoDict.values():
+            for otherMono in other.monoDict.values():
+                product.append(selfMono.times(otherMono))
+
+        return SkewFieldPolynomial(product)
 
     def aInv(self):
-        pass
+        result = []
+        for mono in self.monoDict.values():
+            result.append(mono.aInv())
 
+        return SkewFieldPolynomial(result)
+
+
+    def degree(self):
+        if self.isZero():
+            return 0
+        else:
+            return sorted(monoDict.keys())[-1]
+
+
+    def quotient(self, denominator):
+        numerator = self.deepcopy()
+        result = []
+
+        while(numerator.degree() >= denominator.degree()):
+            leadDenominator = denominator.monoDict.get(
+                denominator.degree(),
+                SkewFieldMonomial.zero())
+            leadNumerator = numerator.monoDict.get(
+                numerator.degree(),
+                SkewFieldMonomial.zero())
+            mono = leadDenominator.mInv().times(leadNumerator)
+            result.append(mono)
+            numerator = numerator.plus(other.times(mono.asPoly()).aInv())
+            numeratorDegree = numerator.degree()
+
+        return SkewFieldPolynomial(result)
 
 ################################################################################
 # MAIN
@@ -1005,8 +1093,7 @@ def main(argv=None):
     print("mono1 * mono4.incSubs(2) = mono5 = " + str(mono5))
     assert(str(mono5) == mono5Str)
 
-    return 1
-    # TESTED ONLY TO THIS POINT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # TODO: more monomial testing
 
     print("POLYNOMIAL ########################################################")
 
