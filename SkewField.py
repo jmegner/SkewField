@@ -1,44 +1,45 @@
 #! /usr/bin/python
-#
-# initial author:   Jacob Egner
-# initial date:     2011-07-08
-#
-# note: even though the standard python class Counter would be wonderful for
-# keeping counts of letters' powers and words' coefficients, consumers of this
-# code might have an old version of python that does not have the Counter class
-#
-# note: I have adopted a pro-immutable philosophy when it comes to these
-# classes; member functions do not modify self or any other argument (except
-# when constructing self); each math operation results in a newly created
-# object; that is why there is a "plus" operation and not an "add" operation;
-#
-# note:
-#   below is a semi-accurate list of functions in each SkewField-ish class;
-#   a class does not necessarily have every function in the list;
-#
-#   __init__        constructor
-#   __str__         string representation; for pretty printing
-#   __repr__        more official string representation
-#   __hash__        so class can be used as a dict key
-#   __cmp__         defines an ordering on the class
-#   deepcopy        so we don't share references
-#   canonize        puts object into canonical form; simplifies some
-#   zero            the zero element of that class type
-#   one             the one element of that class type
-#   isZero          for identifying if object is a zero
-#   isOne           for identifying if object is a one
-#   isScalar        for identifying if object is a multiple of one
-#   asOneAbove      letter => word => sentence => monomial => polynomial
-#   asPoly          object copy promoted to a polynomial
-#   increasedSubs   copy with all component letter subscripts increased
-#   plus            result of addition operation
-#   times           result of multiplication operation
-#   aInv            additive inverse
-#   mInv            mulitiplicative inverse
-#
+"""
+initial author:   Jacob Egner
+initial date:     2011-07-08
+
+note: even though the standard python class Counter would be wonderful for
+keeping counts of letters' powers and words' coefficients, consumers of this
+code might have an old version of python that does not have the Counter class
+
+note: I have adopted a pro-immutable philosophy when it comes to these
+classes; member functions do not modify self or any other argument (except
+when constructing self); each math operation results in a newly created
+object; that is why there is a "plus" operation and not an "add" operation;
+
+note:
+below is a semi-accurate list of functions in each SkewField-ish class;
+a class does not necessarily have every function in the list;
+
+    __init__        constructor
+    __str__         string representation; for pretty printing
+    __repr__        more official string representation
+    __hash__        so class can be used as a dict key
+    __cmp__         defines an ordering on the class
+    deepcopy        so we don't share references
+    canonize        puts object into canonical form; simplifies some
+    zero            the zero element of that class type
+    one             the one element of that class type
+    isZero          for identifying if object is a zero
+    isOne           for identifying if object is a one
+    isScalar        for identifying if object is a multiple of one
+    asOneAbove      letter => word => sentence => monomial => polynomial
+    asPoly          object copy promoted to a polynomial
+    increasedSubs   copy with all component letter subscripts increased
+    plus            result of addition operation
+    times           result of multiplication operation
+    aInv            additive inverse
+    mInv            mulitiplicative inverse
+
+"""
 
 
-FileVersion = "0.09"
+FileVersion = "0.10"
 
 
 import sys
@@ -81,13 +82,14 @@ class SkewFieldLetter():
 
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], str):
-            match = re.match("^([a-z]+)_?(-?\d*)$", args[0].replace(" ", ""))
-            if match == None:
+            #match = re.match("^([a-z]+)_?(-?\d*)$", args[0].replace(" ", ""))
+            components = args[0].split("_")
+
+            if len(components) != 2:
                 raise ValueError("bad SkewFieldLetter() args " + str(args))
-            else:
-                (alphaStr, subStr) = match.groups(0)
-                self.alpha = SkewFieldLetter.alphaAsInt(alphaStr)
-                self.sub = int(subStr)
+
+            self.alpha = SkewFieldLetter.alphaAsInt(components[0])
+            self.sub = int(components[1])
         elif len(args) == 2:
             self.alpha = SkewFieldLetter.alphaAsInt(args[0])
             self.sub = int(args[1])
@@ -774,8 +776,10 @@ class SkewFieldPolynomial():
     def __repr__(self):
         return "SkewFieldPolynomial(\"" + str(self) + "\")"
 
+
     def __hash__(self):
         return hash(str(self))
+
 
     def __cmp__(self, other):
         if self.degree() < other.degree():
@@ -839,7 +843,7 @@ class SkewFieldPolynomial():
 
 
     def asMonoList(self):
-        return reversed(sorted(self.monoDict.values()))
+        return list(reversed(sorted(self.monoDict.values())))
 
 
     def increasedSubs(self, increment):
@@ -871,10 +875,10 @@ class SkewFieldPolynomial():
 
 
     def degree(self):
-        if self.isZero():
+        if len(self.monoDict.keys()) == 0:
             return 0
         else:
-            return sorted(monoDict.keys())[-1]
+            return sorted(self.monoDict.keys())[-1]
 
 
     def quotient(self, denominator):
@@ -1137,6 +1141,8 @@ def main(argv=None):
 
     poly1 = SkewFieldPolynomial([mono1, mono2, mono1])
     print("poly1 = " + str(poly1))
+
+    print(SkewFieldPolynomial.zero().isZero())
 
     return 0
 
