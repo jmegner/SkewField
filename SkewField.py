@@ -38,7 +38,7 @@
 #
 
 
-FileVersion = "0.08"
+FileVersion = "0.09"
 
 
 import sys
@@ -564,14 +564,51 @@ class SkewFieldMonomial():
             return -1
         if self.tpower > other.tpower:
             return 1
+
+
         if self.numer < other.numer:
             return -1
         if self.numer > other.numer:
             return 1
+
         if self.denom < other.denom:
             return -1
         if self.denom > other.denom:
             return 1
+
+        return 0
+
+
+    def __cmp__(self, other):
+        # note: due to not simplifying monos, this comparison only really works
+        # well as an equality tester; less-than and greater-than are not
+        # particularly useful between similarly-tpowered monos
+
+        if self.tpower < other.tpower:
+            return -1
+        if self.tpower > other.tpower:
+            return 1
+
+        # since we don't simplify monos, we need to do a special check
+        # to see if similarly-tpowered monos are equal but in different forms
+
+        sumMono = self.plusSentencePart(other)
+
+        if sumMono.numer == SkewFieldSentence.zero():
+            return 0
+
+        # now back to straightforward comparison
+
+        if self.numer < other.numer:
+            return -1
+        if self.numer > other.numer:
+            return 1
+
+        if self.denom < other.denom:
+            return -1
+        if self.denom > other.denom:
+            return 1
+
         return 0
 
 
