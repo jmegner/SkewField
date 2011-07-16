@@ -1,8 +1,19 @@
 #! /usr/bin/python
-#
-# initial author:   Kitty Yang
-# initial date:     2011-07-15
-#
+"""
+initial author:   Kitty Yang
+initial date:     2011-07-15
+
+note: This is the first numbered version of KittySupplements.py and addresses
+the issues raised in monster code review
+
+note: has a reduced function for each class except SkewFieldLetter that takes
+a relations array as a parameter. This may not be the most efficient way to
+structure things, but it will compile. reduceLetter happens at the word level,
+which seems kind of odd.
+"""
+
+
+FileVersion = "0.01"
 
 
 import sys
@@ -10,7 +21,6 @@ import getopt
 import re
 import collections
 
-# need this to access the SkewField stuff
 from SkewField import *
 
 def firstOfAlpha(self, alpha):
@@ -86,34 +96,56 @@ def raisedTo(self, power):
 
     return newWord
 
+def reducedSentence(self, relations):
+    newWords = []
+    for word in self.wordCtr.keys():
+        newWords.append(word.reduced(relations))
+    return SkewFieldSentence(newWords)
+      
+def reducedMonomial(self, relations):
+    return SkewFieldMonomial(self.numer.reduced(relations),
+                             self.denom.reduced(relations), self.tpower)
 
-# you can define new member functions
-def simplifiedLetterStr(self):
-    if self.sub == 0:
-        return str(self.alpha)
-    return str(self)
+def reducedPolynomial(self, relations):
+    newMonos = []
+    for mono in self.monoDict.values():
+        newMonos.append(mono.reduced(relations))
+    return SkewFieldPolynomial(newMonos)
+
+
+
+################################################################################
+# MAIN
+################################################################################
 
 def main(argv=None):
-    # here is how you add a member function to a class from SkewField.py;
-    # note that the name can be different;
-    SkewFieldLetter.simplifiedStr = simplifiedLetterStr
+
+
+    print("###################################################################")
+    print("# FileVersion = " + FileVersion)
+    print("###################################################################")
+    print("")
+    print("")
+
+    
     SkewFieldWord.firstOfAlpha = firstOfAlpha
     SkewFieldWord.lastOfAlpha = lastOfAlpha    
     SkewFieldWord.firstAbnormalLetter = firstAbnormalLetter
     SkewFieldWord.reducedAtLetter = reducedAtLetter
     SkewFieldWord.reduced = reduced
     SkewFieldWord.raisedTo = raisedTo
+    SkewFieldSentence.reduced = reducedSentence
+    SkewFieldMonomial.reduced = reducedMonomial
+    SkewFieldPolynomial.reduced = reducedPolynomial
 
-    relation = []
+    relations = []
     file = open("relation3_1.txt")
 
     for line in file:
         line = line[0:-1]
-        relation.append(SkewFieldWord(line))
+        relations.append(SkewFieldWord(line))
 
-    print(relation)
-
-    wrd1Str = "a_0^1 * b_1^2"
+    print(relations)
 
     ltrs1 = [
         SkewFieldLetter("a", 0),
@@ -125,7 +157,48 @@ def main(argv=None):
 
     print(wrd1)
     
-    print(wrd1.reduced(relation))
+    print(wrd1.reduced(relations))
+
+    wrd2Str = "a_3^1 * a_-1^2 * b_3^2"
+    wrd2 = SkewFieldWord(wrd2Str)
+
+    snt1Str = "1 * a_0^1 + 1 * b_0^1"
+    snt1 = SkewFieldWord("a_0^1").plus(SkewFieldWord("b_0^1"))
+    print("wrdA + wrdB = snt1 = " + str(snt1))
+
+    print(snt1.reduced(relations))
+
+    snt3Str = "1 * a_0^1 + 1 * b_0^1"
+    snt3 = SkewFieldSentence(snt3Str)
+
+
+    mono1Str = "(" + str(snt1) + ") / (" + str(snt3) + ") * T^-2"
+    mono1 = SkewFieldMonomial(snt1, snt3, -2)
+
+    print(mono1)
+
+    mono2 = mono1.times(mono1.mInv())
+
+    poly1 = SkewFieldPolynomial([mono1, mono2, mono1])
+    print("poly1 = " + str(poly1))
+
+    poly2 = mono1.plus(mono2)
+    print(poly2)
+
+    print(poly2.reduced(relations))
+
+    mono3str = "(1 * a_0^1 + 2 * b_3^2) / (2 * b_0^-2*b_1^1) * T^1"
+    mono4str = "(1 * a_0^1 * b_0^1) / (1) * T^0"
+
+    mono3 = SkewFieldMonomial(mono3str)
+    mono4 = SkewFieldMonomial(mono4str)
+
+    poly3 = SkewFieldPolynomial([mono3, mono4])
+    poly4 = SkewFieldPolynomial([mono3, mono4, mono3, mono4])
+
+    print(mono3.times(mono4))    
+
+    
         
 if __name__ == "__main__":
     sys.exit(main())

@@ -885,7 +885,8 @@ class SkewFieldPolynomial():
         numerator = self.deepcopy()
         result = []
 
-        while(numerator.degree() >= denominator.degree()):
+        while(numerator.degree() >= denominator.degree()
+              and not numerator.isZero()):
             leadDenominator = denominator.monoDict.get(
                 denominator.degree(),
                 SkewFieldMonomial.zero())
@@ -894,8 +895,9 @@ class SkewFieldPolynomial():
                 SkewFieldMonomial.zero())
             mono = leadDenominator.mInv().times(leadNumerator)
             result.append(mono)
-            numerator = numerator.plus(other.times(mono.asPoly()).aInv())
-            numeratorDegree = numerator.degree()
+            numerator = numerator.plus(denominator.times(mono.asPoly()).aInv())
+            print(numerator)
+            print(denominator)
 
         return SkewFieldPolynomial(result)
 
