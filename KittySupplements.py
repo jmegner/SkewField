@@ -8,7 +8,7 @@ note: grand polynomial division works!!!
 """
 
 
-FileVersion = "0.02"
+FileVersion = "0.03"
 
 
 import sys
@@ -16,117 +16,40 @@ import getopt
 import re
 import collections
 
+import SkewField
 from SkewField import *
 
-def firstOfAlpha(self, alpha):
-    for letter in sorted(self.letterCtr.keys()):
-        if letter.alpha == alpha:
-            return (letter.sub, self.letterCtr[letter])
-    return None
 
-def lastOfAlpha(self, alpha):
-    for letter in reversed(sorted(self.letterCtr.keys())):
-        if letter.alpha == alpha:
-            return (letter.sub, self.letterCtr[letter])
-    return None
-
-def firstAbnormalLetter(self, relation):
+# JME_REMARK: this was merged after I changed 'p' to 'power' in the if-statement
+# the use of 'p' makes me suspicious how well this function was tested;
+# I have left the (corrected) function here so you will notice this remark
+# and you might have to change it further after more testing
+def firstAbnormalLetter(self, relations):
     for letter in sorted(self.letterCtr.keys()):
         alpha = letter.alpha
         power = self.letterCtr[letter]
         subscript = letter.sub
-        (minSubscript, minPower) = relation[alpha].firstOfAlpha(alpha)
-        (maxSubscript, maxPower) = relation[alpha].lastOfAlpha(alpha)
+        (minSubscript, minPower) = relations[alpha].firstOfAlpha(alpha)
+        (maxSubscript, maxPower) = relations[alpha].lastOfAlpha(alpha)
 
         if not(
-            (subscript < minSubscript and p in range (abs(minPower))) or
-            (subscript > maxSubscript and p in range (abs(maxPower))) or
+            (subscript < minSubscript and power in range (abs(minPower))) or
+            (subscript > maxSubscript and power in range (abs(maxPower))) or
             (subscript in range (minSubscript, maxSubscript))):
 
             return letter
 
         return None
 
-def reducedAtLetter(self, letter, relation):
-    alpha = letter.alpha
-    power = self.letterCtr[letter]
-    subscript = letter.sub
-    (minSubscript, minPower) = relation[alpha].firstOfAlpha(alpha)
-    (maxSubscript, maxPower) = relation[alpha].lastOfAlpha(alpha)
 
-    if(subscript < minSubscript):
-        increment = subscript - minSubscript
-        if minPower < 0:
-            exponent = 1
-        else:
-            exponent = 0
-        exponent += power // minPower
-        newRelation = relation[alpha].increasedSubs(increment)
-        newRelation = newRelation.raisedTo(-exponent)
-        return self.times(newRelation)
+# JME_REMARK: in reducedAtLetter and the multiple reduced functions, I changed
+# the "relation" argument to "relations" since the variable does hold multiple
+# relations
 
-    if(subscript >= maxSubscript):
-        increment = subscript - maxSubscript
-        if maxPower < 0:
-            exponent = 1
-        else:
-            exponent = 0
-        exponent += power // maxPower
-        newRelation = relation[alpha].increasedSubs(increment)
-        newRelation = newRelation.raisedTo(-exponent)
-        return self.times(newRelation)
+# JME_REMARK: in raisedTo, you had "letterPower*power"; you need a space on
+# each side of binary operators
 
-def reduced(self, relation):
-    abnormalLetter = self.firstAbnormalLetter(relation)
-    if abnormalLetter is None:
-        return self
-    else:
-        return self.reducedAtLetter(abnormalLetter, relation).reduced(relation)
 
-def raisedTo(self, power):
-    newWord = SkewFieldWord()
-
-    for letter, letterPower in self.letterCtr.items():
-        newWord.letterCtr[letter.deepcopy()] = letterPower*power
-
-    return newWord
-
-def reducedSentence(self, relations):
-    newWords = []
-    for word in self.wordCtr.keys():
-        newWords.append(word.reduced(relations))
-    return SkewFieldSentence(newWords)
-      
-def reducedMonomial(self, relations):
-    return SkewFieldMonomial(self.numer.reduced(relations),
-                             self.denom.reduced(relations), self.tpower)
-
-def reducedPolynomial(self, relations):
-    newMonos = []
-    for mono in self.monoDict.values():
-        newMonos.append(mono.reduced(relations))
-    return SkewFieldPolynomial(newMonos)
-
-def quotient(self, denominator):
-    numerator = self.deepcopy()
-    result = []
-
-    while(numerator.degree() >= denominator.degree()
-          and not numerator.isZero()):
-        leadDenominator = denominator.monoDict.get(
-            denominator.degree(),
-            SkewFieldMonomial.zero())
-        leadNumerator = numerator.monoDict.get(
-            numerator.degree(),
-            SkewFieldMonomial.zero())
-        mono = leadDenominator.mInv().times(leadNumerator)
-        result.append(mono)
-        product = denominator.times(mono.asPoly())
-        numerator = numerator.plus(product.aInv())
-        print(numerator)
-        print(denominator)
-
-    return SkewFieldPolynomial(result)
 
 
 
@@ -137,60 +60,49 @@ def quotient(self, denominator):
 
 def main(argv=None):
 
+    SkewFieldMain()
 
+    print("")
+    print("")
     print("###################################################################")
-    print("# FileVersion = " + FileVersion)
+    print("# KittySupplements test battery")
     print("###################################################################")
     print("")
     print("")
 
-    
-    SkewFieldWord.firstOfAlpha = firstOfAlpha
-    SkewFieldWord.lastOfAlpha = lastOfAlpha    
+
+    # JME_REMARK: merged but still left in your file
     SkewFieldWord.firstAbnormalLetter = firstAbnormalLetter
-    SkewFieldWord.reducedAtLetter = reducedAtLetter
-    SkewFieldWord.reduced = reduced
-    SkewFieldWord.raisedTo = raisedTo
-    SkewFieldSentence.reduced = reducedSentence
-    SkewFieldMonomial.reduced = reducedMonomial
-    SkewFieldPolynomial.reduced = reducedPolynomial
-    SkewFieldPolynomial.quo = quotient
 
-    relations = []
-    file = open("relation3_1.txt")
+    # JME_REMARK: no need to do input from file;
+    #
+    # besides, we want our test data to be here until it grows so big
+    # it is a huge hassle to keep it here;
+    #
+    # also, I changed "relation" to "relations1"
 
-    for line in file:
-        line = line[0:-1]
-        relations.append(SkewFieldWord(line))
+    # so we can refer to SkewField's global variables without typing
+    # "SkewField." every time
+    j = SkewField
 
-    print(relations)
 
-    ltrs1 = [
-        SkewFieldLetter("a", 0),
-        SkewFieldLetter("b", 1),
-        SkewFieldLetter("b", 1),
-    ]
-
-    wrd1 = SkewFieldWord(ltrs1)
+    # JME_REMARK: you need asserts; for instance:
+    # assert(str(wrd1Reduced) == wrd1ReducedStr)
+    #
+    # after you have added asserts, I will merge in these tests
+    # even if you don't want to manually check huuuge results like quot, at
+    # least capture the string rep of quot as it now and assert quot with that
+    # string rep; that way we will be alerted if quot ever changes; but be sure
+    # to make a comment that the assert is not confident
 
     #test reduce words
-    print(wrd1)
-    print(wrd1.reduced(relations))
-
-    wrd2Str = "a_3^1 * a_-1^2 * b_3^2"
-    wrd2 = SkewFieldWord(wrd2Str)
-
-    snt1Str = "1 * a_0^1 + 1 * b_0^1"
-    snt1 = SkewFieldWord("a_0^1").plus(SkewFieldWord("b_0^1"))
-    print("wrdA + wrdB = snt1 = " + str(snt1))
+    print(j.wrd1)
+    print(j.wrd1.reduced(j.relations1))
 
     #test reduce sentences
-    snt2 = snt1.reduced(relations)
-    print(snt2)
-    print(snt2.increasedSubs(5))
-
-    snt3Str = "1 * a_0^1 + 1 * b_1^1"
-    snt3 = SkewFieldSentence(snt3Str)
+    snt1Reduced = j.snt1.reduced(j.relations1)
+    print(snt1Reduced)
+    print(snt1Reduced.increasedSubs(5))
 
     #tested bug with plusSentenceParts
     lead1str = "(1 * a_0^1 + 1 * b_0^1) / (1 * a_0^1 + 1 * b_1^1) * T^2"
@@ -219,9 +131,9 @@ def main(argv=None):
     print(cross1.plus(cross2))
 
     #tests polynomial long division
-    print(lead2.asPoly().quo(lead1.asPoly()))
-    
-        
+    print(lead2.asPoly().quotient(lead1.asPoly()))
+
+
 if __name__ == "__main__":
     sys.exit(main())
 
