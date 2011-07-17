@@ -3,17 +3,12 @@
 initial author:   Kitty Yang
 initial date:     2011-07-15
 
-note: This is the first numbered version of KittySupplements.py and addresses
-the issues raised in monster code review
+note: grand polynomial division works!!!
 
-note: has a reduced function for each class except SkewFieldLetter that takes
-a relations array as a parameter. This may not be the most efficient way to
-structure things, but it will compile. reduceLetter happens at the word level,
-which seems kind of odd.
 """
 
 
-FileVersion = "0.01"
+FileVersion = "0.02"
 
 
 import sys
@@ -112,6 +107,28 @@ def reducedPolynomial(self, relations):
         newMonos.append(mono.reduced(relations))
     return SkewFieldPolynomial(newMonos)
 
+def quotient(self, denominator):
+    numerator = self.deepcopy()
+    result = []
+
+    while(numerator.degree() >= denominator.degree()
+          and not numerator.isZero()):
+        leadDenominator = denominator.monoDict.get(
+            denominator.degree(),
+            SkewFieldMonomial.zero())
+        leadNumerator = numerator.monoDict.get(
+            numerator.degree(),
+            SkewFieldMonomial.zero())
+        mono = leadDenominator.mInv().times(leadNumerator)
+        result.append(mono)
+        product = denominator.times(mono.asPoly())
+        numerator = numerator.plus(product.aInv())
+        print(numerator)
+        print(denominator)
+
+    return SkewFieldPolynomial(result)
+
+
 
 
 ################################################################################
@@ -137,6 +154,7 @@ def main(argv=None):
     SkewFieldSentence.reduced = reducedSentence
     SkewFieldMonomial.reduced = reducedMonomial
     SkewFieldPolynomial.reduced = reducedPolynomial
+    SkewFieldPolynomial.quo = quotient
 
     relations = []
     file = open("relation3_1.txt")
@@ -155,8 +173,8 @@ def main(argv=None):
 
     wrd1 = SkewFieldWord(ltrs1)
 
+    #test reduce words
     print(wrd1)
-    
     print(wrd1.reduced(relations))
 
     wrd2Str = "a_3^1 * a_-1^2 * b_3^2"
@@ -166,38 +184,42 @@ def main(argv=None):
     snt1 = SkewFieldWord("a_0^1").plus(SkewFieldWord("b_0^1"))
     print("wrdA + wrdB = snt1 = " + str(snt1))
 
-    print(snt1.reduced(relations))
+    #test reduce sentences
+    snt2 = snt1.reduced(relations)
+    print(snt2)
+    print(snt2.increasedSubs(5))
 
-    snt3Str = "1 * a_0^1 + 1 * b_0^1"
+    snt3Str = "1 * a_0^1 + 1 * b_1^1"
     snt3 = SkewFieldSentence(snt3Str)
 
+    #tested bug with plusSentenceParts
+    lead1str = "(1 * a_0^1 + 1 * b_0^1) / (1 * a_0^1 + 1 * b_1^1) * T^2"
+    lead2str = "(2 * a_0^1 + 2 * b_0^1) / (1 * a_0^1 + 1 * b_1^1) * T^2"
 
-    mono1Str = "(" + str(snt1) + ") / (" + str(snt3) + ") * T^-2"
-    mono1 = SkewFieldMonomial(snt1, snt3, -2)
+    lead1 = SkewFieldMonomial(lead1str)
+    lead2 = SkewFieldMonomial(lead2str)
 
-    print(mono1)
+    quot = lead1.mInv().times(lead2)
+    quotAInv = quot.aInv()
 
-    mono2 = mono1.times(mono1.mInv())
+    trouble1 = lead1.times(quot)
+    trouble1AInv = trouble1.aInv()
+    trouble2 = lead2.plus(trouble1.aInv())
 
-    poly1 = SkewFieldPolynomial([mono1, mono2, mono1])
-    print("poly1 = " + str(poly1))
 
-    poly2 = mono1.plus(mono2)
-    print(poly2)
+    print("lead1 = " + str(lead1))
+    print("lead2 = " + str(lead2))
+    print("quot = " + str(quot))
+    print("trouble1 = " + str(trouble1))
+    print("trouble2 = " + str(trouble2))
 
-    print(poly2.reduced(relations))
+    cross1 = trouble1AInv.numer.times(lead2.denom)
+    cross2 = trouble1AInv.denom.times(lead2.numer)
 
-    mono3str = "(1 * a_0^1 + 2 * b_3^2) / (2 * b_0^-2*b_1^1) * T^1"
-    mono4str = "(1 * a_0^1 * b_0^1) / (1) * T^0"
+    print(cross1.plus(cross2))
 
-    mono3 = SkewFieldMonomial(mono3str)
-    mono4 = SkewFieldMonomial(mono4str)
-
-    poly3 = SkewFieldPolynomial([mono3, mono4])
-    poly4 = SkewFieldPolynomial([mono3, mono4, mono3, mono4])
-
-    print(mono3.times(mono4))    
-
+    #tests polynomial long division
+    print(lead2.asPoly().quo(lead1.asPoly()))
     
         
 if __name__ == "__main__":
