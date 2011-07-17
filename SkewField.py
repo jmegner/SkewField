@@ -39,7 +39,7 @@ a class does not necessarily have every function in the list;
 """
 
 
-FileVersion = "0.13"
+FileVersion = "0.14"
 
 
 import sys
@@ -969,6 +969,16 @@ def SkewFieldMain(argv=None):
     # test operations did not violate immutability
     assert(ltrA0Again == ltrA0)
     assert(str(ltrA0Again) == str(ltrA0))
+
+
+
+    # at least call remaining functions to make sure they do not blow up
+    ltrA0.deepcopy()
+    ltrA0.isZero()
+    ltrA0.isOne()
+    ltrA0.isScalar()
+    ltrA0.asWord()
+    ltrA0.asPoly()
 
     print("WORD ##############################################################")
 
