@@ -39,7 +39,7 @@ a class does not necessarily have every function in the list;
 """
 
 
-FileVersion = "0.11"
+FileVersion = "0.12"
 
 
 import sys
@@ -333,6 +333,11 @@ class SkewFieldWord():
         return SkewFieldSentence([self, other])
 
 
+    # warning: SkewFieldSentence produced
+    def minus(self, other):
+        return self.asSentence().minus(other.asSentence())
+
+
     def times(self, other):
         product = SkewFieldWord(self.letterCtr)
         updateCounts(product.letterCtr, other.letterCtr)
@@ -490,6 +495,10 @@ class SkewFieldSentence():
         updateCounts(result.wordCtr, other.wordCtr)
         result.canonize() # probably not needed
         return result
+
+
+    def minus(self, other):
+        return self.plus(other.aInv())
 
 
     def times(self, other):
@@ -685,6 +694,11 @@ class SkewFieldMonomial():
         return SkewFieldPolynomial([self, other])
 
 
+    # warning: returns SkewFieldPolynomial
+    def minus(self, other):
+        return self.plus(other.aInv())
+
+
     def times(self, other):
         product = SkewFieldMonomial.zero()
 
@@ -702,6 +716,10 @@ class SkewFieldMonomial():
 
         product.canonize()
         return product
+
+
+    def dividedBy(self, other):
+        return self.times(other.mInv())
 
 
     def aInv(self):
@@ -743,7 +761,7 @@ class SkewFieldMonomial():
 class SkewFieldPolynomial():
 
 
-    # monos argument can be str, tuple, list, set, or dict
+    # monos argument can be str, tuple, list, set
     def __init__(self, monos = []):
         self.monoDict = dict() # key is tpower, value is monomial
 
@@ -880,6 +898,10 @@ class SkewFieldPolynomial():
             return 0
         else:
             return sorted(self.monoDict.keys())[-1]
+
+
+    def highestMono(self):
+        return self.monoDict.get(self.degree(), None)
 
 
     def quotient(self, denominator):
@@ -1159,6 +1181,26 @@ def SkewFieldMain(argv=None):
     print("poly.zero().isZero() == " + str(SkewFieldPolynomial.zero().isZero()))
 
     print("MISC ##############################################################")
+
+    lead1str = "(1 * a_0^1 + 1 * b_0^1) / (1 * a_0^1 + 1 * b_1^1) * T^2"
+    lead2str = "(2 * a_0^1 + 2 * b_0^1) / (1 * a_0^1 + 1 * b_1^1) * T^2"
+
+    lead1 = SkewFieldMonomial(lead1str)
+    lead2 = SkewFieldMonomial(lead2str)
+
+    lead2AInv = lead2.aInv()
+
+    trouble1 = lead1.plus(lead2)
+    trouble2 = lead1.plus(lead2AInv)
+
+    print("lead1 = " + str(lead1))
+    print("lead2 = " + str(lead2))
+    print("lead2AInv = " + str(lead2AInv))
+    print("trouble1 = " + str(trouble1))
+    print("trouble2 = " + str(trouble2))
+
+    assert(trouble1 != trouble2)
+
 
     print("END OF SKEWFIELD.PY TEST BATTERY ##################################")
 
