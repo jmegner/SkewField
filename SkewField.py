@@ -39,7 +39,7 @@ a class does not necessarily have every function in the list;
 """
 
 
-FileVersion = "0.14"
+FileVersion = "0.15"
 
 
 import sys
@@ -879,6 +879,11 @@ class SkewFieldPolynomial():
 
         self.canonize()
 
+        for tpower in self.monoDict.keys():
+            if tpower < 0:
+                raise ValueError("polys can not have negative powers: "
+                    + str(tpower))
+
 
     def __str__(self):
         # temporarily using "++" as super-plus operator to make it more apparent
@@ -996,7 +1001,9 @@ class SkewFieldPolynomial():
 
     def degree(self):
         if len(self.monoDict.keys()) == 0:
-            return 0
+            # zero-polys do not have a degree; we could return "None",
+            # but -1 is more convenient
+            return -1
         else:
             return sorted(self.monoDict.keys())[-1]
 
@@ -1074,13 +1081,17 @@ def SkewFieldMain(argv=None):
     assert(ltrB0 > ltrA1)
 
     # test basic operations
+
     assert(ltrA0.increasedSubs(1) == ltrA1)
+
+    assert(SkewFieldLetter.alphaAsStr("ab") == str("ab"))
+    assert(SkewFieldLetter.alphaAsStr(27) == str("ab"))
+    assert(SkewFieldLetter.alphaAsInt("ab") == 27)
+    assert(SkewFieldLetter.alphaAsInt(27) == 27)
 
     # test operations did not violate immutability
     assert(ltrA0Again == ltrA0)
     assert(str(ltrA0Again) == str(ltrA0))
-
-
 
     # at least call remaining functions to make sure they do not blow up
     ltrA0.deepcopy()
@@ -1385,7 +1396,7 @@ def SkewFieldMain(argv=None):
     print("POLYNOMIAL ########################################################")
 
     global poly1
-    poly1 = SkewFieldPolynomial([mono1, mono2, mono1])
+    poly1 = SkewFieldPolynomial([mono4, monoA, mono4])
     print("poly1 = " + str(poly1))
 
     print("poly.zero().isZero() == " + str(SkewFieldPolynomial.zero().isZero()))
