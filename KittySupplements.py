@@ -3,12 +3,12 @@
 initial author:   Kitty Yang
 initial date:     2011-07-15
 
-note: grand polynomial division works!!!
+note: grand polynomial division still works!!!
 
 """
 
 
-FileVersion = "0.03"
+FileVersion = "0.04"
 
 
 import sys
@@ -20,10 +20,11 @@ import SkewField
 from SkewField import *
 
 
-# JME_REMARK: this was merged after I changed 'p' to 'power' in the if-statement
-# the use of 'p' makes me suspicious how well this function was tested;
-# I have left the (corrected) function here so you will notice this remark
-# and you might have to change it further after more testing
+# I thought about doing testing on firstAbnormalLetter, but it's difficult to
+# explicitly check the function for accuracy
+# However, calling all the reduced functions that depend on this one seems to
+# implicity verify. I reduce already reduced words, and check to see if they
+# are equal. This feels sufficient.
 def firstAbnormalLetter(self, relations):
     for letter in sorted(self.letterCtr.keys()):
         alpha = letter.alpha
@@ -40,18 +41,45 @@ def firstAbnormalLetter(self, relations):
             return letter
 
         return None
+# redid sentence's reduce function because I was not fully aware of how the
+# coefficients in sentence works. Hooray for testing.
 
+# SENTENCE #####################################################################
+def reduced(self, relations):
+    nSentence = SkewFieldSentence()
+    for word in self.wordCtr.keys():
+        updateCounts(nSentence.wordCtr,
+                     { word.reduced(relations) : self.wordCtr[word]})
+    nSentence.canonize();
+    return nSentence
+ 
+# POLYNOMIAL ###################################################################
 
-# JME_REMARK: in reducedAtLetter and the multiple reduced functions, I changed
-# the "relation" argument to "relations" since the variable does hold multiple
-# relations
+# Will the degree function of poly change?
+# Applies polynomial long division algorithm to output quotient and remainder
+def quotientRemainder(self, denominator):
+    numerator = self.deepcopy()
+    result = []
 
-# JME_REMARK: in raisedTo, you had "letterPower*power"; you need a space on
-# each side of binary operators
+    while(numerator.degree() >= denominator.degree()
+          and not numerator.isZero()):
+        leadDenominator = denominator.monoDict.get(
+            denominator.degree(),
+            SkewFieldMonomial.zero())
+        leadNumerator = numerator.monoDict.get(
+            numerator.degree(),
+            SkewFieldMonomial.zero())
+        mono = leadDenominator.mInv().times(leadNumerator)
+        result.append(mono)
+        product = denominator.times(mono.asPoly())
+        numerator = numerator.plus(product.aInv())
 
+    return (SkewFieldPolynomial(result), numerator)
 
-
-
+# For one reason or another, I can't name this method quotient. It will remain
+# almost t-less.
+def quotien(self, denominator):
+    return self.quotientRemainder(denominator)[0]
 
 
 ################################################################################
@@ -70,39 +98,78 @@ def main(argv=None):
     print("")
     print("")
 
-
-    # JME_REMARK: merged but still left in your file
     SkewFieldWord.firstAbnormalLetter = firstAbnormalLetter
+    SkewFieldSentence.newreduced = reduced
+    SkewFieldPolynomial.quotientRemainder = quotientRemainder
+    SkewFieldPolynomial.quot = quotien
 
-    # JME_REMARK: no need to do input from file;
-    #
-    # besides, we want our test data to be here until it grows so big
-    # it is a huge hassle to keep it here;
-    #
-    # also, I changed "relation" to "relations1"
-
-    # so we can refer to SkewField's global variables without typing
-    # "SkewField." every time
     j = SkewField
 
 
-    # JME_REMARK: you need asserts; for instance:
-    # assert(str(wrd1Reduced) == wrd1ReducedStr)
-    #
-    # after you have added asserts, I will merge in these tests
-    # even if you don't want to manually check huuuge results like quot, at
-    # least capture the string rep of quot as it now and assert quot with that
-    # string rep; that way we will be alerted if quot ever changes; but be sure
-    # to make a comment that the assert is not confident
-
     #test reduce words
-    print(j.wrd1)
-    print(j.wrd1.reduced(j.relations1))
+    print("wrd1 = " + str(j.wrd1))
+    wrd1reduced = j.wrd1.reduced(j.relations1)
+    print("wrd1 reduced = " + str(wrd1reduced))
+
+    wrd1reducedstr = "b_0^1 * b_1^1"
+    assert(wrd1reduced == wrd1reduced.reduced(j.relations1))
+    assert(str(wrd1reduced) == wrd1reducedstr)
+
+
+    print("wrd2 = " + str(j.wrd2))
+    wrd2reduced = j.wrd2.reduced(j.relations1)
+    print("wrd2 reduced = " + str(wrd2reduced))
+
+    wrd2reducedstr = "b_0^-1 * b_1^1 * b_3^1"
+    assert(wrd2reduced == wrd2reduced.reduced(j.relations1))
+    assert(str(wrd2reduced) == wrd2reducedstr)
+
 
     #test reduce sentences
-    snt1Reduced = j.snt1.reduced(j.relations1)
-    print(snt1Reduced)
-    print(snt1Reduced.increasedSubs(5))
+    print("snt1 = " + str(j.snt1))
+    snt1reduced = j.snt1.newreduced(j.relations1)
+    print("snt1 reduced = " + str(snt1reduced))
+
+    snt1reducedstr = "1 * b_0^1 + 1 * b_0^1 * b_1^-1"
+    assert(snt1reduced == snt1reduced.newreduced(j.relations1))
+    assert(str(snt1reduced) == snt1reducedstr)
+
+
+    print("snt2 = " + str(j.snt2))
+    snt2reduced = j.snt2.newreduced(j.relations1)
+    print("snt2 reduced = " + str(snt2reduced))
+
+    snt2reducedstr = "2"
+    assert(snt2reduced == snt2reduced.newreduced(j.relations1))
+    assert(str(snt2reduced) == snt2reducedstr)
+
+    #test reduce monomials
+    print("mono1 = " + str(j.mono1))
+    mono1reduced = j.mono1.reduced(j.relations1)
+    print("mono1 reduced = " + str(mono1reduced))
+
+    #this line goes past 80 characters, but I don't know how to wrap it
+    mono1reducedstr = "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1 + 1 * b_0^7 * b_1^-7) * T^-2"
+    assert(mono1reduced == mono1reduced.reduced(j.relations1))
+    assert(str(mono1reduced) == mono1reducedstr)
+
+    print("mono4 = " + str(j.mono4))
+    mono4reduced = j.mono4.reduced(j.relations1)
+    print("mono4 reduced = " + str(mono4reduced))
+
+    mono4reducedstr = "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1) * T^3"
+    assert(mono4reduced == mono4reduced.reduced(j.relations1))
+    assert(str(mono4reduced) == mono4reducedstr)
+
+    #test reduce poly
+    print("poly1 = " + str(j.poly1))
+    poly1reduced = j.poly1.reduced(j.relations1)
+    print("poly1 reduced = " + str(poly1reduced))
+
+    poly1reducedstr = "(1) / (1) * T^0 ++ (1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1 + 1 * b_0^7 * b_1^-7) * T^-2"
+    assert(poly1reduced == poly1reduced.reduced(j.relations1))
+    assert(str(poly1reduced) == poly1reducedstr)
+
 
     #tested bug with plusSentenceParts
     lead1str = "(1 * a_0^1 + 1 * b_0^1) / (1 * a_0^1 + 1 * b_1^1) * T^2"
@@ -125,13 +192,27 @@ def main(argv=None):
     print("trouble1 = " + str(trouble1))
     print("trouble2 = " + str(trouble2))
 
+    assert(trouble2 == SkewFieldPolynomial.zero())
+
+
     cross1 = trouble1AInv.numer.times(lead2.denom)
     cross2 = trouble1AInv.denom.times(lead2.numer)
 
-    print(cross1.plus(cross2))
+    assert(cross1 != cross2)
 
     #tests polynomial long division
-    print(lead2.asPoly().quotient(lead1.asPoly()))
+
+    poly2 = SkewFieldPolynomial([mono1.mInv(), mono4, mono4])
+    print("poly2 = " + str(poly2))
+    poly3 = SkewFieldPolynomial([mono1.mInv(), mono3, mono4, mono4])
+    print("poly3 = " + str(poly3))
+
+    quotient = poly3.quot(poly2)
+    (quo, remainder) = poly3.quotientRemainder(poly2)
+    print("quotient of poly3 and poly2 = " + str(quotient))
+    print(remainder)
+    assert(quotient == quo)
+    assert(poly3 == poly2.times(quotient).plus(remainder))
 
 
 if __name__ == "__main__":
