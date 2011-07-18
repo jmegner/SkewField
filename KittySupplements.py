@@ -3,12 +3,12 @@
 initial author:   Kitty Yang
 initial date:     2011-07-15
 
-note: grand polynomial division still works!!!
+Adds tpowerDiff for possible negative powers of t
 
 """
 
 
-FileVersion = "0.04"
+FileVersion = "0.05"
 
 
 import sys
@@ -18,7 +18,6 @@ import collections
 
 import SkewField
 from SkewField import *
-
 
 # I thought about doing testing on firstAbnormalLetter, but it's difficult to
 # explicitly check the function for accuracy
@@ -81,6 +80,19 @@ def quotientRemainder(self, denominator):
 def quotien(self, denominator):
     return self.quotientRemainder(denominator)[0]
 
+def tpowerDiff(self):
+    if len(self.monoDict.keys()) == 0:
+        # zero-polys do not have a degree; we could return "None",
+        # but -1 is more convenient
+        return -1
+    else:
+        highestpower = sorted(self.monoDict.keys())[-1]
+        lowestpower = sorted(self.monoDict.keys())[0]
+        return highestpower - lowestpower
+
+def lowestPower(self):
+    return sorted(self.monoDict.keys())[0]
+
 
 ################################################################################
 # MAIN
@@ -102,6 +114,8 @@ def main(argv=None):
     SkewFieldSentence.newreduced = reduced
     SkewFieldPolynomial.quotientRemainder = quotientRemainder
     SkewFieldPolynomial.quot = quotien
+    SkewFieldPolynomial.tpowerDiff = tpowerDiff
+    SkewFieldPolynomial.lowestPower = lowestPower
 
     j = SkewField
 
@@ -166,7 +180,7 @@ def main(argv=None):
     poly1reduced = j.poly1.reduced(j.relations1)
     print("poly1 reduced = " + str(poly1reduced))
 
-    poly1reducedstr = "(1) / (1) * T^0 ++ (1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1 + 1 * b_0^7 * b_1^-7) * T^-2"
+    poly1reducedstr = "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1) * T^3 ++ (1 * b_0^1 * b_1^-1) / (1) * T^0"
     assert(poly1reduced == poly1reduced.reduced(j.relations1))
     assert(str(poly1reduced) == poly1reducedstr)
 
@@ -213,6 +227,19 @@ def main(argv=None):
     print(remainder)
     assert(quotient == quo)
     assert(poly3 == poly2.times(quotient).plus(remainder))
+
+    #test tpowerDiff
+    #should be equal if all powers non-negative and has constant term
+    assert(poly1.degree() == poly1.tpowerDiff())
+    assert(poly3.degree() == poly3.tpowerDiff())
+
+    #test lowestPower
+    print("poly1 = " + str(poly1))
+    lowestpoly1 = poly1.lowestPower()
+    print("lowest power of poly1 = " + str(lowestpoly1))
+    poly1deg = poly1.degree()
+    print("degree of poly1 = " + str((poly1deg)))
+    assert(poly1deg - lowestpoly1 == poly1.tpowerDiff())
 
 
 if __name__ == "__main__":
