@@ -32,14 +32,18 @@ a class does not necessarily have every function in the list;
     asPoly          object copy promoted to a polynomial
     increasedSubs   copy with all component letter subscripts increased
     plus            result of addition operation
+    minus           result of subtraction operation
     times           result of multiplication operation
+    dividedBy       result of division operation
     aInv            additive inverse
     mInv            mulitiplicative inverse
+    reduced         reduced form according to given relations
 
 """
 
 
-FileVersion = "0.16"
+global SFFileVersion
+SFFileVersion = "0.17"
 
 
 import sys
@@ -281,10 +285,7 @@ class SkewFieldWord():
 
 
     def deepcopy(self):
-        cpy = SkewFieldWord()
-        for letter, power in self.letterCtr.items():
-            cpy.letterCtr[letter.deepcopy()] = int(power)
-        return cpy
+        return SkewFieldWord(self.letterCtr)
 
 
     # delete all words with coefficient 0
@@ -320,12 +321,12 @@ class SkewFieldWord():
 
 
     def increasedSubs(self, increment):
-        result = SkewFieldWord()
+        newLetterCtr = dict()
         for letter, power in self.letterCtr.items():
             newLetter = letter.deepcopy()
             newLetter.sub += increment
-            result.letterCtr[newLetter] = int(power)
-        return result
+            newLetterCtr[newLetter] = int(power)
+        return SkewFieldWord(newLetterCtr)
 
 
     # warning: SkewFieldSentence produced
@@ -350,10 +351,10 @@ class SkewFieldWord():
 
 
     def mInv(self):
-        inverse = SkewFieldWord()
+        mInvLetterCtr = dict()
         for letter, power in self.letterCtr.items():
-            inverse.letterCtr[letter] = -power
-        return inverse
+            mInvLetterCtr[letter] = -power
+        return SkewFieldWord(mInvLetterCtr)
 
 
     def firstOfAlpha(self, alpha):
@@ -524,10 +525,7 @@ class SkewFieldSentence():
 
 
     def deepcopy(self):
-        cpy = SkewFieldSentence()
-        for word, coef in self.wordCtr.items():
-            cpy.wordCtr[word.deepcopy()] = int(coef)
-        return cpy
+        return SkewFieldSentence(self.wordCtr)
 
 
     # delete all words with coeff 0
@@ -862,11 +860,6 @@ class SkewFieldPolynomial():
 
         self.canonize()
 
-        for tpower in self.monoDict.keys():
-            if tpower < 0:
-                raise ValueError("polys can not have negative powers: "
-                    + str(tpower))
-
 
     def __str__(self):
         # temporarily using "++" as super-plus operator to make it more apparent
@@ -912,6 +905,15 @@ class SkewFieldPolynomial():
 
 
     def canonize(self):
+        # even though polys usually forbid negative powers, we will sometimes
+        # be dealing with negative powers, but the code is left in as a comment
+        # for if/when we change our minds about the restriction
+
+        #for tpower in self.monoDict.keys():
+        #    if tpower < 0:
+        #        raise ValueError("polys can not have negative powers: "
+        #            + str(tpower))
+
         # remove monomials that are zero
         for tpower, mono in self.monoDict.items():
             if mono.isZero():
@@ -1029,7 +1031,7 @@ class SkewFieldPolynomial():
 
 def SkewFieldMain(argv=None):
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-    print("@ SkewField.py FileVersion = " + FileVersion)
+    print("@ SkewField.py FileVersion = " + SFFileVersion)
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     print("")
     print("")
