@@ -39,7 +39,7 @@ a class does not necessarily have every function in the list;
 """
 
 
-FileVersion = "0.15"
+FileVersion = "0.16"
 
 
 import sys
@@ -344,6 +344,11 @@ class SkewFieldWord():
         product.canonize() # probably not needed
         return product
 
+
+    def dividedBy(self, other):
+        return self.times(other.mInv())
+
+
     def mInv(self):
         inverse = SkewFieldWord()
         for letter, power in self.letterCtr.items():
@@ -365,13 +370,13 @@ class SkewFieldWord():
         return None
 
 
-    def firstAbnormalLetter(self, relation):
+    def firstAbnormalLetter(self, relations):
         for letter in sorted(self.letterCtr.keys()):
             alpha = letter.alpha
             power = self.letterCtr[letter]
             subscript = letter.sub
-            (minSubscript, minPower) = relation[alpha].firstOfAlpha(alpha)
-            (maxSubscript, maxPower) = relation[alpha].lastOfAlpha(alpha)
+            (minSubscript, minPower) = relations[alpha].firstOfAlpha(alpha)
+            (maxSubscript, maxPower) = relations[alpha].lastOfAlpha(alpha)
 
             if not(
                 (subscript < minSubscript and power in range (abs(minPower))) or
@@ -502,12 +507,12 @@ class SkewFieldSentence():
             if selfWord > otherWord:
                 return 1
 
-            selfWordPower = self.wordCtr[selfWord]
-            otherWordPower = other.wordCtr[otherWord]
+            selfWordCoef = self.wordCtr[selfWord]
+            otherWordCoef = other.wordCtr[otherWord]
 
-            if selfWordPower < otherWordPower:
+            if selfWordCoef < otherWordCoef:
                 return -1
-            if selfWordPower > otherWordPower:
+            if selfWordCoef > otherWordCoef:
                 return 1
 
         if len(selfSortedWords) < len(otherSortedWords):
@@ -583,11 +588,11 @@ class SkewFieldSentence():
 
     def times(self, other):
         product = SkewFieldSentence() # empty sentence
-        for selfWord, selfWordCoeff in self.wordCtr.items():
-            for otherWord, otherWordCoeff in other.wordCtr.items():
+        for selfWord, selfWordCoef in self.wordCtr.items():
+            for otherWord, otherWordCoef in other.wordCtr.items():
                 updateCounts(
                     product.wordCtr,
-                    { selfWord.times(otherWord) : selfWordCoeff * otherWordCoeff})
+                    { selfWord.times(otherWord) : selfWordCoef * otherWordCoef})
         product.canonize();
         return product
 
@@ -659,26 +664,6 @@ class SkewFieldMonomial():
 
 
     def __cmp__(self, other):
-        if self.tpower < other.tpower:
-            return -1
-        if self.tpower > other.tpower:
-            return 1
-
-
-        if self.numer < other.numer:
-            return -1
-        if self.numer > other.numer:
-            return 1
-
-        if self.denom < other.denom:
-            return -1
-        if self.denom > other.denom:
-            return 1
-
-        return 0
-
-
-    def __cmp__(self, other):
         # note: due to not simplifying monos, this comparison only really works
         # well as an equality tester; less-than and greater-than are not
         # particularly useful between similarly-tpowered monos
@@ -691,7 +676,7 @@ class SkewFieldMonomial():
         # since we don't simplify monos, we need to do a special check
         # to see if similarly-tpowered monos are equal but in different forms
 
-        sumMono = self.plusSentencePart(other)
+        sumMono = self.plusSentencePart(other.aInv())
 
         if sumMono.numer == SkewFieldSentence.zero():
             return 0
@@ -755,17 +740,12 @@ class SkewFieldMonomial():
 
 
     def isScalar(self):
-        return (self.numer == SkewFieldSentence.isScalar()
-            and self.denom == SkewFieldSentence.isScalar()
+        return (self.numer.isScalar() and self.denom.isScalar()
             and self.tpower == 0)
 
 
-    def asOneAbove(self):
-        return SkewFieldPolynomial([self])
-
-
     def asPoly(self):
-        return self.asOneAbove()
+        return SkewFieldPolynomial([self])
 
 
     def increasedSubs(self, increment):
@@ -855,27 +835,30 @@ class SkewFieldMonomial():
 class SkewFieldPolynomial():
 
 
-    # monos argument can be str, tuple, list, set
+    # monos argument can be str, or list
     def __init__(self, monos = []):
         self.monoDict = dict() # key is tpower, value is monomial
 
+        monoList = [] # to hold list of SkewFieldMonomials
+
         if isinstance(monos, str):
-            raise ValueError("poly str constructor not supported yet")
-
-        # else assume monos is a collection of monomials
+            for monoStr in monos.split("++"):
+                monoList.append(SkewFieldMonomial(monoStr))
         else:
-            # iterate to add the monos into our polynomial
-            for otherMono in monos:
+            monoList = monos
 
-                # if already have mono of that tpower, must add them together
-                if otherMono.tpower in self.monoDict:
-                    myMono = self.monoDict.pop(otherMono.tpower)
-                    self.monoDict[otherMono.tpower] \
-                        = myMono.plusSentencePart(otherMono)
+        # iterate to add the monos into our polynomial
+        for otherMono in monoList:
 
-                # else don't have mono of that tpower; simple insert
-                else:
-                    self.monoDict[otherMono.tpower] = otherMono.deepcopy();
+            # if already have mono of that tpower, must add them together
+            if otherMono.tpower in self.monoDict:
+                myMono = self.monoDict.pop(otherMono.tpower)
+                self.monoDict[otherMono.tpower] \
+                    = myMono.plusSentencePart(otherMono)
+
+            # else don't have mono of that tpower; simple insert
+            else:
+                self.monoDict[otherMono.tpower] = otherMono.deepcopy();
 
         self.canonize()
 
@@ -991,6 +974,26 @@ class SkewFieldPolynomial():
         return SkewFieldPolynomial(product)
 
 
+    def quotient(self, denominator):
+        numerator = self.deepcopy()
+        result = []
+
+        while(numerator.degree() >= denominator.degree()
+              and not numerator.isZero()):
+            leadDenominator = denominator.monoDict.get(
+                denominator.degree(),
+                SkewFieldMonomial.zero())
+            leadNumerator = numerator.monoDict.get(
+                numerator.degree(),
+                SkewFieldMonomial.zero())
+            mono = leadDenominator.mInv().times(leadNumerator)
+            result.append(mono)
+            product = denominator.times(mono.asPoly())
+            numerator = numerator.plus(product.aInv())
+
+        return SkewFieldPolynomial(result)
+
+
     def aInv(self):
         result = []
         for mono in self.monoDict.values():
@@ -1010,28 +1013,6 @@ class SkewFieldPolynomial():
 
     def highestMono(self):
         return self.monoDict.get(self.degree(), None)
-
-
-    def quotient(self, denominator):
-        numerator = self.deepcopy()
-        result = []
-
-        while(numerator.degree() >= denominator.degree()
-              and not numerator.isZero()):
-            leadDenominator = denominator.monoDict.get(
-                denominator.degree(),
-                SkewFieldMonomial.zero())
-            leadNumerator = numerator.monoDict.get(
-                numerator.degree(),
-                SkewFieldMonomial.zero())
-            mono = leadDenominator.mInv().times(leadNumerator)
-            result.append(mono)
-            product = denominator.times(mono.asPoly())
-            numerator = numerator.plus(product.aInv())
-            print(numerator)
-            print(denominator)
-
-        return SkewFieldPolynomial(result)
 
 
     def reduced(self, relations):
@@ -1093,13 +1074,21 @@ def SkewFieldMain(argv=None):
     assert(ltrA0Again == ltrA0)
     assert(str(ltrA0Again) == str(ltrA0))
 
-    # at least call remaining functions to make sure they do not blow up
-    ltrA0.deepcopy()
-    ltrA0.isZero()
-    ltrA0.isOne()
-    ltrA0.isScalar()
-    ltrA0.asWord()
-    ltrA0.asPoly()
+    # do just-run-it test with all of them
+
+    global ltrList
+    ltrList = [ ltrA0, ltrA0Again, ltrA1, ltrB0, ]
+
+    for ltr in ltrList:
+        str(ltr)
+        ltr == ltr
+        ltr.deepcopy()
+        ltr.isZero()
+        ltr.isOne()
+        ltr.isScalar()
+        ltr.asWord()
+        ltr.asPoly()
+        ltr.increasedSubs(1)
 
     print("WORD ##############################################################")
 
@@ -1154,6 +1143,11 @@ def SkewFieldMain(argv=None):
     print("wrd3 = " + str(wrd3))
     assert(str(wrd3) == wrd3Str)
 
+    # test cmp a bit
+
+    assert(wrd1 < wrd3)
+    assert(wrd3 > wrd1)
+
     # test mInv and times a bit
 
     global wrd1MInvStr
@@ -1166,7 +1160,7 @@ def SkewFieldMain(argv=None):
     print("wrd1 * wrd1MInv = " + str(wrd1.times(wrd1MInv)))
     assert(SkewFieldWord.one() == wrd1.times(wrd1MInv))
 
-    # test times a bit more
+    # test times and dividedBy
 
     global wrd4Str
     wrd4Str = "a_0^1 * b_1^5 * c_2^1"
@@ -1183,6 +1177,32 @@ def SkewFieldMain(argv=None):
     wrd5 = wrd3.times(wrd1)
     print("wrd3 * wrd1 = wrd5 = " + str(wrd5))
     assert(str(wrd5) == wrd5Str)
+
+    assert(wrd5.dividedBy(wrd3) == wrd1)
+    assert(wrd5.dividedBy(wrd1) == wrd3)
+
+    # do just-run-it tests
+
+    global wrdList
+    wrdList = [ wrd1, wrd2, wrd3, wrd4, wrd5, ]
+
+    for wrd in wrdList:
+        str(wrd)
+        wrd == wrd
+        wrd.deepcopy()
+        wrd.isZero()
+        wrd.isOne()
+        wrd.isScalar()
+        wrd.asSentence()
+        wrd.asPoly()
+        wrd.increasedSubs(1)
+        wrd.plus(wrd)
+        wrd.minus(wrd)
+        wrd.times(wrd)
+        wrd.dividedBy(wrd)
+        wrd.mInv()
+        wrd.firstOfAlpha(0)
+        wrd.lastOfAlpha(0)
 
     print("SENTENCE ##########################################################")
 
@@ -1292,6 +1312,32 @@ def SkewFieldMain(argv=None):
     print("snt7 * snt2 * snt1 = snt10 = " + str(snt10))
     assert(snt10 == snt8)
 
+    # do just-run-it tests
+
+    SkewFieldSentence.zero()
+    SkewFieldSentence.one()
+
+    global sntList
+    sntList = [
+        snt1, snt2, snt3, snt3AInv, snt4, snt5,
+        snt6, snt7, snt8, snt9, snt10, snt99,
+    ]
+
+    for snt in sntList:
+        str(snt)
+        snt == snt
+        snt.deepcopy()
+        snt.isZero()
+        snt.isOne()
+        snt.isScalar()
+        snt.asMono()
+        snt.asPoly()
+        snt.increasedSubs(1)
+        snt.plus(snt)
+        snt.minus(snt)
+        snt.times(snt)
+        snt.aInv()
+
     print("MONOMIAL ##########################################################")
 
     # basic construction-representation test
@@ -1391,17 +1437,109 @@ def SkewFieldMain(argv=None):
 
     assert(monoBmAtArtB.isZero())
 
-    # TODO: more monomial testing
+    # just-run-it tests
+
+    SkewFieldMonomial.zero()
+    SkewFieldMonomial.one()
+
+    global monoList
+    monoList = [
+        mono1, mono1MInv, mono2, mono3, mono4, mono5, mono6, mono7,
+        monoA, monoB, monoAr, monoArtB, monoAtArtB,
+    ]
+
+    for mono in monoList:
+        str(mono)
+        mono == mono
+        mono.deepcopy()
+        mono.isZero()
+        mono.isOne()
+        mono.isScalar()
+        if mono.tpower >= 0:
+            mono.asPoly()
+        mono.increasedSubs(1)
+        if mono.tpower >= 0:
+            mono.plus(mono)
+        mono.minus(mono)
+        mono.times(mono)
+        mono.dividedBy(mono)
+        mono.aInv()
+        mono.mInv()
+        mono.plusSentencePart(mono)
 
     print("POLYNOMIAL ########################################################")
+
+    # basic construction and representation test
+
+    global poly1Str
+    poly1Str = "(2 * a_0^1 + 2 * b_0^1) / (1) * T^3 ++ (1 * a_0^1) / (1) * T^0"
 
     global poly1
     poly1 = SkewFieldPolynomial([mono4, monoA, mono4])
     print("poly1 = " + str(poly1))
+    assert(str(poly1) == poly1Str)
 
-    print("poly.zero().isZero() == " + str(SkewFieldPolynomial.zero().isZero()))
+    global poly2Str
+    poly2Str = "(1 * b_0^1) / (1) * T^3"
+
+    global poly2
+    poly2 = SkewFieldPolynomial(poly2Str)
+    print("poly2 = " + str(poly2))
+    assert(str(poly2) == poly2Str)
+
+    global poly3Str
+    poly3Str = "(1 * a_0^1) / (1 * b_0^1) * T^3"
+
+    global poly3
+    poly3 = SkewFieldPolynomial(poly3Str)
+    print("poly3 = " + str(poly3))
+    assert(str(poly3) == poly3Str)
+
+    # test cmp a bit
+    assert(poly1 == poly1)
+    assert(poly1 < poly2)
+    assert(poly1 > poly3)
+
+    # test the special value functions
+    assert(SkewFieldPolynomial.zero().isZero())
+    assert(SkewFieldPolynomial.zero().isScalar())
+    assert(SkewFieldPolynomial.one().isOne())
+    assert(SkewFieldPolynomial.one().isScalar())
+    assert(not SkewFieldPolynomial.one().isZero())
+    assert(not poly1.isScalar())
+
+    # RESUME: asMonoList
 
     # TODO: much more poly testing
+
+    # just-run-it tests
+
+    SkewFieldPolynomial.zero()
+    SkewFieldPolynomial.one()
+
+    global polyList
+    polyList = [
+        poly1,
+    ]
+
+    for poly in polyList:
+        str(poly)
+        poly == poly
+        poly.deepcopy()
+        poly.isZero()
+        poly.isOne()
+        poly.isScalar()
+        poly.asPoly()
+        poly.asMonoList()
+        poly.increasedSubs(1)
+        poly.plus(poly)
+        poly.minus(poly)
+        poly.times(poly)
+        poly.quotient(poly)
+        poly.aInv()
+        poly.degree()
+        poly.highestMono()
+
 
     print("RELATIONS #########################################################")
 
