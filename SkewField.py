@@ -386,7 +386,7 @@ class SkewFieldWord():
 
                 return letter
 
-            return None
+        return None
 
 
     def reducedAtLetter(self, letter, relations):
@@ -600,7 +600,6 @@ class SkewFieldSentence():
         for word, coef in self.wordCtr.items():
             inverse.wordCtr[word] = -coef
         return inverse
-
 
     def reduced(self, relations):
         reducedWordCtr = dict()
@@ -1039,7 +1038,7 @@ class SkewFieldPolynomial():
         if self.isZero():
             # zero-polys do not have a degree; we could return "None",
             # but -1 is more convenient
-            return -1
+            return 0
         else:
             return self.degree() - self.lowestPower()
 
@@ -1062,7 +1061,6 @@ class SkewFieldPolynomial():
         for mono in self.monoDict.values():
             newMonos.append(mono.reduced(relations))
         return SkewFieldPolynomial(newMonos)
-
 
 ################################################################################
 # MAIN
