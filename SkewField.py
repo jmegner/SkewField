@@ -604,13 +604,6 @@ class SkewFieldSentence():
         return inverse
 
 
-    def reduced(self, relations):
-        newWords = []
-        for word in self.wordCtr.keys():
-            newWords.append(word.reduced(relations))
-        return SkewFieldSentence(newWords)
-
-
 ################################################################################
 # SkewFieldMonomial is a sentence-fraction times T to some power
 #
@@ -1020,7 +1013,6 @@ class SkewFieldPolynomial():
         for mono in self.monoDict.values():
             newMonos.append(mono.reduced(relations))
         return SkewFieldPolynomial(newMonos)
-
 
 ################################################################################
 # MAIN

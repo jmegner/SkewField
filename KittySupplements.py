@@ -8,7 +8,7 @@ Adds tpowerDiff for possible negative powers of t
 """
 
 
-FileVersion = "0.05"
+FileVersion = "0.06"
 
 
 import sys
@@ -18,6 +18,7 @@ import collections
 
 import SkewField
 from SkewField import *
+
 
 # I thought about doing testing on firstAbnormalLetter, but it's difficult to
 # explicitly check the function for accuracy
@@ -119,6 +120,8 @@ def main(argv=None):
 
     j = SkewField
 
+
+    print(j.relations1)
 
     #test reduce words
     print("wrd1 = " + str(j.wrd1))
@@ -238,8 +241,61 @@ def main(argv=None):
     lowestpoly1 = poly1.lowestPower()
     print("lowest power of poly1 = " + str(lowestpoly1))
     poly1deg = poly1.degree()
-    print("degree of poly1 = " + str((poly1deg)))
+    print("degree of poly1 = " + str((poly3deg)))
     assert(poly1deg - lowestpoly1 == poly1.tpowerDiff())
+
+    relations2 = [SkewFieldWord("a_0^1 * b_-1^-1"), SkewFieldWord("b_0^1 * c_0^1 * c_1^-1"), SkewFieldWord("c_0^1 * c_1^-3 * c_2^1")]
+
+    print("wrd1 = " + str(j.wrd1))
+    wrd1red = j.wrd1.reduced(relations2)
+    print("wrd1 reduced = " + str(wrd1red))
+    assert(wrd1red == wrd1red.reduced(relations2))
+
+    mono1 = SkewFieldMonomial("(1 + -1 * b_1^-1) / (1) * T^0")
+    poly1 = mono1.asPoly()
+
+    print("poly1 = " + str(poly1))
+
+    mono2 = SkewFieldMonomial("(1 + -1 * a_1^1) / (1) * T^0")
+    poly2 = mono2.asPoly()
+
+    print("poly2 = " + str(poly2))
+
+    quotient = poly2.quotient(poly1)
+    print("quotient of poly2/poly1 = " + str(quotient))
+
+    quotientred = quotient.reduced(j.relations1)
+
+    print("quotient reduced = " + str(quotientred))
+
+    result = poly1.times(quotient).aInv()
+    print(result)
+    print(poly2.plus(result))
+
+    mono3 = SkewFieldMonomial("(-1 * b_1^-1) / (1) * T^1")
+    mono4 = SkewFieldMonomial("(1 * a_0^-1 * b_1^-1) / (1) * T^0")
+    poly3 = SkewFieldPolynomial([mono3, mono4])
+
+    print("poly1 = " + str(poly1))
+    poly1red = poly1.reduced(j.relations1)
+    print("poly1 reduced = " + str(poly1red))
+    
+    print("poly3 = " + str(poly3))
+    poly3 = poly3.reduced(j.relations1)
+    print("poly3 reduced = " + str(poly3))
+    poly3quotientpoly1 = poly3.quotient(poly1red)
+    print("quotient of poly3/poly1 = " + str(poly3quotientpoly1))
+
+    poly3quotientpoly1 = poly3quotientpoly1.reduced(j.relations1)
+    print("quotient of poly3/poly1 reduced = " + str(poly3quotientpoly1))
+
+    print("read = " + str(poly1red.times(poly3quotientpoly1)))
+
+    result = poly1red.times(poly3quotientpoly1).reduced(j.relations1)
+    print("additive inverse = " + str(result))
+    print(poly3.plus(result.aInv()))
+
+    print(j.relations1)
 
 
 if __name__ == "__main__":
