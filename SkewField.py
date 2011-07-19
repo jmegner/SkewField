@@ -43,7 +43,7 @@ a class does not necessarily have every function in the list;
 
 
 global SFFileVersion
-SFFileVersion = "0.18"
+SFFileVersion = "0.19"
 
 
 import sys
@@ -1069,7 +1069,9 @@ class SkewFieldPolynomial():
 ################################################################################
 
 
+
 def SkewFieldMain(argv=None):
+
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     print("@ SkewField.py FileVersion = " + SFFileVersion)
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
