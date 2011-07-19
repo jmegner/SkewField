@@ -386,7 +386,7 @@ class SkewFieldWord():
 
                 return letter
 
-            return None
+        return None
 
 
     def reducedAtLetter(self, letter, relations):
@@ -601,9 +601,6 @@ class SkewFieldSentence():
             inverse.wordCtr[word] = -coef
         return inverse
 
-
-<<<<<<< HEAD
-=======
     def reduced(self, relations):
         reducedWordCtr = dict()
 
@@ -614,7 +611,6 @@ class SkewFieldSentence():
         return SkewFieldSentence(reducedWordCtr)
 
 
->>>>>>> 174642053c020400dfc41a3d3d3c89e530ce9f52
 ################################################################################
 # SkewFieldMonomial is a sentence-fraction times T to some power
 #
@@ -1042,7 +1038,7 @@ class SkewFieldPolynomial():
         if self.isZero():
             # zero-polys do not have a degree; we could return "None",
             # but -1 is more convenient
-            return -1
+            return 0
         else:
             return self.degree() - self.lowestPower()
 
