@@ -3,12 +3,14 @@
 initial author:   Kitty Yang
 initial date:     2011-07-15
 
-Adds tpowerDiff for possible negative powers of t
-
 """
 
 
+<<<<<<< HEAD
 FileVersion = "0.06"
+=======
+KSFileVersion = "0.06"
+>>>>>>> 174642053c020400dfc41a3d3d3c89e530ce9f52
 
 
 import sys
@@ -16,9 +18,9 @@ import getopt
 import re
 import collections
 
-import SkewField
 from SkewField import *
 
+<<<<<<< HEAD
 
 # I thought about doing testing on firstAbnormalLetter, but it's difficult to
 # explicitly check the function for accuracy
@@ -43,56 +45,18 @@ def firstAbnormalLetter(self, relations):
         return None
 # redid sentence's reduce function because I was not fully aware of how the
 # coefficients in sentence works. Hooray for testing.
+=======
+# WORD #########################################################################
+
+>>>>>>> 174642053c020400dfc41a3d3d3c89e530ce9f52
 
 # SENTENCE #####################################################################
-def reduced(self, relations):
-    nSentence = SkewFieldSentence()
-    for word in self.wordCtr.keys():
-        updateCounts(nSentence.wordCtr,
-                     { word.reduced(relations) : self.wordCtr[word]})
-    nSentence.canonize();
-    return nSentence
- 
+
+
+# MONONOMIAL ###################################################################
+
+
 # POLYNOMIAL ###################################################################
-
-# Will the degree function of poly change?
-# Applies polynomial long division algorithm to output quotient and remainder
-def quotientRemainder(self, denominator):
-    numerator = self.deepcopy()
-    result = []
-
-    while(numerator.degree() >= denominator.degree()
-          and not numerator.isZero()):
-        leadDenominator = denominator.monoDict.get(
-            denominator.degree(),
-            SkewFieldMonomial.zero())
-        leadNumerator = numerator.monoDict.get(
-            numerator.degree(),
-            SkewFieldMonomial.zero())
-        mono = leadDenominator.mInv().times(leadNumerator)
-        result.append(mono)
-        product = denominator.times(mono.asPoly())
-        numerator = numerator.plus(product.aInv())
-
-    return (SkewFieldPolynomial(result), numerator)
-
-# For one reason or another, I can't name this method quotient. It will remain
-# almost t-less.
-def quotien(self, denominator):
-    return self.quotientRemainder(denominator)[0]
-
-def tpowerDiff(self):
-    if len(self.monoDict.keys()) == 0:
-        # zero-polys do not have a degree; we could return "None",
-        # but -1 is more convenient
-        return -1
-    else:
-        highestpower = sorted(self.monoDict.keys())[-1]
-        lowestpower = sorted(self.monoDict.keys())[0]
-        return highestpower - lowestpower
-
-def lowestPower(self):
-    return sorted(self.monoDict.keys())[0]
 
 
 ################################################################################
@@ -106,21 +70,16 @@ def main(argv=None):
     print("")
     print("")
     print("###################################################################")
-    print("# KittySupplements test battery")
+    print("# KittySupplements v" + KSFileVersion + " test battery")
     print("###################################################################")
     print("")
     print("")
 
-    SkewFieldWord.firstAbnormalLetter = firstAbnormalLetter
-    SkewFieldSentence.newreduced = reduced
-    SkewFieldPolynomial.quotientRemainder = quotientRemainder
-    SkewFieldPolynomial.quot = quotien
-    SkewFieldPolynomial.tpowerDiff = tpowerDiff
-    SkewFieldPolynomial.lowestPower = lowestPower
 
     j = SkewField
 
 
+<<<<<<< HEAD
     print(j.relations1)
 
     #test reduce words
@@ -298,6 +257,8 @@ def main(argv=None):
     print(j.relations1)
 
 
+=======
+>>>>>>> 174642053c020400dfc41a3d3d3c89e530ce9f52
 if __name__ == "__main__":
     sys.exit(main())
 

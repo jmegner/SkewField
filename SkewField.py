@@ -43,7 +43,7 @@ a class does not necessarily have every function in the list;
 
 
 global SFFileVersion
-SFFileVersion = "0.17"
+SFFileVersion = "0.18"
 
 
 import sys
@@ -602,6 +602,19 @@ class SkewFieldSentence():
         return inverse
 
 
+<<<<<<< HEAD
+=======
+    def reduced(self, relations):
+        reducedWordCtr = dict()
+
+        for word in self.wordCtr.keys():
+            updateCounts(reducedWordCtr,
+                { word.reduced(relations) : self.wordCtr[word] })
+
+        return SkewFieldSentence(reducedWordCtr)
+
+
+>>>>>>> 174642053c020400dfc41a3d3d3c89e530ce9f52
 ################################################################################
 # SkewFieldMonomial is a sentence-fraction times T to some power
 #
@@ -621,8 +634,12 @@ class SkewFieldMonomial():
                 re.VERBOSE,
             )
 
+            # if not in formal mono-string format, try to parse as a sentence
+            # with implicit denom=one and tpower=0
             if match == None:
-                raise ValueError("bad SkewFieldMonomial() args " + str(args))
+                self.numer = SkewFieldSentence(args[0])
+                self.denom = SkewFieldSentence.one()
+                self.tpower = 0
             else:
                 (numerStr, denomStr, tpowerStr) = match.groups(0)
 
@@ -826,15 +843,17 @@ class SkewFieldMonomial():
 class SkewFieldPolynomial():
 
 
-    # monos argument can be str, or list
+    # monos argument can be str or list (not dict)
     def __init__(self, monos = []):
         self.monoDict = dict() # key is tpower, value is monomial
 
         monoList = [] # to hold list of SkewFieldMonomials
 
         if isinstance(monos, str):
-            for monoStr in monos.split("++"):
+            for monoStr in monos.replace(" ", "").split("++"):
                 monoList.append(SkewFieldMonomial(monoStr))
+        elif isinstance(monos, dict):
+            monoList = list(monos.values())
         else:
             monoList = monos
 
@@ -924,7 +943,7 @@ class SkewFieldPolynomial():
 
 
     def isZero(self):
-        return self == SkewFieldPolynomial.zero()
+        return len(self.monoDict) == 0
 
 
     def isOne(self):
@@ -940,8 +959,13 @@ class SkewFieldPolynomial():
         return self.deepcopy()
 
 
+    # highest tpower first
     def asMonoList(self):
         return list(reversed(sorted(self.monoDict.values())))
+
+
+    def asPowerList(self):
+        return list(reversed(sorted(self.monoDict.keys())))
 
 
     def increasedSubs(self, increment):
@@ -968,8 +992,16 @@ class SkewFieldPolynomial():
 
         return SkewFieldPolynomial(product)
 
-
     def quotient(self, denominator):
+        return self.quotientAndRemainder(denominator)[0]
+
+
+    def remainder(self, denominator):
+        return self.quotientAndRemainder(denominator)[1]
+
+
+    # applies poly long division algo to return quotient and remainder
+    def quotientAndRemainder(self, denominator):
         numerator = self.deepcopy()
         result = []
 
@@ -986,7 +1018,7 @@ class SkewFieldPolynomial():
             product = denominator.times(mono.asPoly())
             numerator = numerator.plus(product.aInv())
 
-        return SkewFieldPolynomial(result)
+        return (SkewFieldPolynomial(result), numerator)
 
 
     def aInv(self):
@@ -998,16 +1030,34 @@ class SkewFieldPolynomial():
 
 
     def degree(self):
-        if len(self.monoDict.keys()) == 0:
+        if self.isZero():
+            # zero-polys do not have a degree; we could return "None",
+            # but a negative number is more convenient
+            return -1
+        else:
+            return self.asPowerList()[0]
+
+
+    def powerDiff(self):
+        if self.isZero():
             # zero-polys do not have a degree; we could return "None",
             # but -1 is more convenient
             return -1
         else:
-            return sorted(self.monoDict.keys())[-1]
+            return self.degree() - self.lowestPower()
 
 
     def highestMono(self):
-        return self.monoDict.get(self.degree(), None)
+        return self.asMonoList()[0]
+
+
+    def lowestMono(self):
+        return self.asMonoList()[-1]
+
+
+    # no need for highestPower since that is taken care of by degree
+    def lowestPower(self):
+        return self.asPowerList()[-1]
 
 
     def reduced(self, relations):
@@ -1026,8 +1076,8 @@ def SkewFieldMain(argv=None):
     print("@ SkewField.py FileVersion = " + SFFileVersion)
     print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     print("")
-    print("")
 
+    print("")
     print("LETTER ############################################################")
 
     global ltrA0Str
@@ -1084,6 +1134,7 @@ def SkewFieldMain(argv=None):
         ltr.asPoly()
         ltr.increasedSubs(1)
 
+    print("")
     print("WORD ##############################################################")
 
     # basic construction-representation test
@@ -1198,6 +1249,7 @@ def SkewFieldMain(argv=None):
         wrd.firstOfAlpha(0)
         wrd.lastOfAlpha(0)
 
+    print("")
     print("SENTENCE ##########################################################")
 
     # test wrd+wrd => sentence
@@ -1332,6 +1384,7 @@ def SkewFieldMain(argv=None):
         snt.times(snt)
         snt.aInv()
 
+    print("")
     print("MONOMIAL ##########################################################")
 
     # basic construction-representation test
@@ -1461,6 +1514,7 @@ def SkewFieldMain(argv=None):
         mono.mInv()
         mono.plusSentencePart(mono)
 
+    print("")
     print("POLYNOMIAL ########################################################")
 
     # basic construction and representation test
@@ -1489,12 +1543,20 @@ def SkewFieldMain(argv=None):
     print("poly3 = " + str(poly3))
     assert(str(poly3) == poly3Str)
 
+    global poly4Str
+    poly4Str = "1"
+
+    global poly4
+    poly4 = SkewFieldPolynomial(poly4Str)
+    print("poly4 = " + str(poly4))
+
     # test cmp a bit
     assert(poly1 == poly1)
     assert(poly1 < poly2)
     assert(poly1 > poly3)
 
     # test the special value functions
+
     assert(SkewFieldPolynomial.zero().isZero())
     assert(SkewFieldPolynomial.zero().isScalar())
     assert(SkewFieldPolynomial.one().isOne())
@@ -1502,9 +1564,36 @@ def SkewFieldMain(argv=None):
     assert(not SkewFieldPolynomial.one().isZero())
     assert(not poly1.isScalar())
 
-    # RESUME: asMonoList
+    # test quotientAndRemainder
 
+    poly5 = SkewFieldPolynomial([mono1.mInv(), mono4, mono4])
+    print("poly5 = " + str(poly5))
+    poly6 = SkewFieldPolynomial([mono1.mInv(), mono3, mono4, mono4])
+    print("poly6 = " + str(poly6))
+
+    (poly65Quot, poly65Remain) = poly6.quotientAndRemainder(poly5)
+    print("poly6.quotient(poly5) = poly65Quot = " + str(poly65Quot))
+    print("poly6.remainder(poly5) = poly65Remain = " + str(poly65Remain))
+    assert(poly65Quot == poly6.quotient(poly5))
+    assert(poly65Remain == poly6.remainder(poly5))
+    assert(poly6 == poly5.times(poly65Quot).plus(poly65Remain))
+
+    # test powerDiff
+    # should be equal if all powers non-negative and has constant term
+    assert(poly1.degree() == poly1.powerDiff())
+    assert(poly6.degree() == poly6.powerDiff())
+
+    # test lowestPower
+    print("poly1 = " + str(poly1))
+    poly1LowPower = poly1.lowestPower()
+    print("poly1.lowestPower() = " + str(poly1LowPower))
+    poly1Deg = poly1.degree()
+    print("poly1.degree() = " + str((poly1Deg)))
+    assert(poly1Deg - poly1LowPower == poly1.powerDiff())
+
+    # RESUME: asMonoList
     # TODO: much more poly testing
+
 
     # just-run-it tests
 
@@ -1535,6 +1624,7 @@ def SkewFieldMain(argv=None):
         poly.highestMono()
 
 
+    print("")
     print("RELATIONS #########################################################")
 
     global relations1
@@ -1543,8 +1633,110 @@ def SkewFieldMain(argv=None):
         SkewFieldWord("b_0^1 * b_1^-1 * b_2^1"),
     ]
 
+    print("relations1 = [ " + ",  ".join(map(str,relations1)) + " ]")
+
+    # test word reduction
+
+    global wrdsBeforeReduction
+    wrdsBeforeReduction = [
+        wrd1,
+        wrd2,
+    ]
+
+    global wrdsAfterReduction
+    wrdsAfterReduction = []
+
+    global wrdStrsAfterReduction 
+    wrdStrsAfterReduction = [
+        "b_0^1 * b_1^1",
+        "b_0^-1 * b_1^1 * b_3^1",
+    ]
+
+    for wrd, wrdReducedStr in zip(wrdsBeforeReduction, wrdStrsAfterReduction):
+        wrdReduced = wrd.reduced(relations1)
+        wrdsAfterReduction.append(wrdReduced)
+
+        print("wrd = " + str(wrd))
+        print("    reduced = " + str(wrdReduced))
+        print("    answer = " + wrdReducedStr)
+
+    # test sentence reduction
+
+    global sntsBeforeReduction
+    sntsBeforeReduction = [
+        snt1,
+        snt2,
+    ]
+
+    global sntsAfterReduction
+    sntsAfterReduction = []
+
+    global sntStrsAfterReduction 
+    sntStrsAfterReduction = [
+        "1 * b_0^1 + 1 * b_0^1 * b_1^-1",
+        "2",
+    ]
+
+    for snt, sntReducedStr in zip(sntsBeforeReduction, sntStrsAfterReduction):
+        sntReduced = snt.reduced(relations1)
+        sntsAfterReduction.append(sntReduced)
+
+        print("snt = " + str(snt))
+        print("    reduced = " + str(sntReduced))
+        print("    answer = " + sntReducedStr)
+
+    # test mono reduction
+
+    global monosBeforeReduction
+    monosBeforeReduction = [
+        mono1,
+        mono4,
+    ]
+
+    global monosAfterReduction
+    monosAfterReduction = []
+
+    global monoStrsAfterReduction 
+    monoStrsAfterReduction = [
+        "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1 + 1 * b_0^7 * b_1^-7) * T^-2",
+        "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1) * T^3",
+    ]
+
+    for mono, monoReducedStr in zip(monosBeforeReduction, monoStrsAfterReduction):
+        monoReduced = mono.reduced(relations1)
+        monosAfterReduction.append(monoReduced)
+
+        print("mono = " + str(mono))
+        print("    reduced = " + str(monoReduced))
+        print("    answer = " + monoReducedStr)
+
+    # test poly reduction
+
+    global polysBeforeReduction
+    polysBeforeReduction = [
+        poly1,
+    ]
+
+    global polysAfterReduction
+    polysAfterReduction = []
+
+    global polyStrsAfterReduction 
+    polyStrsAfterReduction = [
+        "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1) * T^3 ++ (1 * b_0^1 * b_1^-1) / (1) * T^0",
+    ]
+
+    for poly, polyReducedStr in zip(polysBeforeReduction, polyStrsAfterReduction):
+        polyReduced = poly.reduced(relations1)
+        polysAfterReduction.append(polyReduced)
+
+        print("poly = " + str(poly))
+        print("    reduced = " + str(polyReduced))
+        print("    answer = " + polyReducedStr)
+
+    print("")
     print("MISC ##############################################################")
 
+    print("")
     print("END OF SKEWFIELD.PY TEST BATTERY ##################################")
 
     return 0

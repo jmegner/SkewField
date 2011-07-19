@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-FileVersion = "0.000"
+FileVersion = "0.1"
 
 import sys
 import getopt
@@ -10,167 +10,157 @@ import collections
 import SkewField
 from SkewField import *
 
-
-class MatPoly():
+class SFPolyMat():
 
 #-------initializer-------#    
-    def __init__(self,mat,rels):
+    def __init__(self, mat, rels):
         self.mat = mat
         self.rels = rels
 
 #-------methods to be used with skew field-------#
     
-    #finds the degree of a polynomial. Implimented over skew field
-    def degree(self,elt):
-        return elt.degree()
-    
-    #Finds lowest degree of power in Laurent polynomial. Implimented over skew field    
-    def lowestpower(self,elt):
-        return elt.lowestPower()
-    
     #swaps rows i and j in the matrix. Implimented over skew field
-    def swap_rows(self,i,j):
+    def swapRows(self, i, j):
         temp = self.mat[i]
         self.mat[i] = self.mat[j]
         self.mat[j] = temp
     
     #swaps columns i and j in the matrix. Implimented over skew field
-    def swap_columns(self,i, j):
-        for k in range(0,len(self.mat)):
-            #print "in swap_columns at " + str(k)
+    def swapColumns(self,i, j):
+        for k in range(len(self.mat)):
+            #print "in swapColumns at " + str(k)
             temp = self.mat[k][i]
             self.mat[k][i] = self.mat[k][j]
             self.mat[k][j] = temp
     
-    #scales row i by mult. Implimented over skew field.
-    def scale_row(self,i,mult):
-        for k in range(0,self.ncols()):
-            self.mat[i][k] = self.mat[i][k].times(mult)
-            self.mat[i][k] = self.mat[i][k].reduced(self.rels)
+    #scales row by multiplier. Implimented over skew field.
+    def scaleRow(self, row, multiplier):
+        for col in range(self.nCols()):
+            nPoly = self.mat[row][col].times(multiplier)
+            self.mat[row][col] = nPoly.reduced(self.rels)
     
-    #scales col i by mult. Implimented over skew field
-    def scale_col(self, i, mult):
-        for k in range(0,self.nrows()):
-            self.mat[k][i] = self.mat[k][i].times(mult)
-            self.mat[k][i] = self.mat[k][i].reduced(self.rels)
+    #scales col by multiplier. Implimented over skew field
+    def scaleColumn(self, col, multiplier):
+        for row in range(self.nRows()):
+            nPoly = self.mat[row][col].times(multiplier)
+            self.mat[row][col] = nPoly.reduced(self.rels)
         
-    #adding mult*j to i. Should work over skew field    
-    def add_multiple_of_row(self,i,j,mult):
-        print "adding " + str(mult) +"*" +str(j) + " to row " +str(i)
+    #adds multiplier*j to i. Should work over skew field    
+    def addMultOfRow(self, i, j, multiplier):
+        #print "adding " + str(multiplier) +"*" +str(j) + " to row " +str(i)
         temp = []
-        for k in range(0,self.ncols()):
-            a = self.mat[j][k].times(mult)
-            temp.append(a.reduced(self.rels))
-        for l in range(0,self.ncols()):
-            self.mat[i][l] = self.mat[i][l].plus(temp[l])
-            self.mat[i][l] = self.mat[i][l].reduced(self.rels)
-        print self.mat
+        for col in range(self.nCols()):
+            poly = self.mat[j][col].times(multiplier)
+            temp.append(poly.reduced(self.rels))
+        for col in range(self.nCols()):
+            poly = self.mat[i][col].plus(temp[col])
+            self.mat[i][col] = poly.reduced(self.rels)
+        #print self.mat
     
     #adding mult*j to i. Should work over skew field    
-    def add_multiple_of_col(self,i,j,mult):
-        print "adding " + str(mult) +"*" + str(j) + " to col " + str(i)
+    def addMultOfColumn(self, i, j, multiplier):
+        #print "adding " + str(multiplier) +"*" + str(j) + " to col " + str(i)
         temp = []
-        for k in range(0,self.nrows()):
-            a = self.mat[k][j].times(mult)
-            temp.append(a.reduced(self.rels))
-        for l in range(0,self.ncols()):
-            self.mat[l][i] = self.mat[l][i].plus(temp[l])
-            self.mat[l][i] = self.mat[l][i].reduced(self.rels)
-        print self.mat          
+        for row in range(self.nRows()):
+            poly = self.mat[row][j].times(multiplier)
+            temp.append(poly.reduced(self.rels))
+        for row in range(self.nCols()):
+            poly = self.mat[row][i].plus(temp[row])
+            self.mat[row][i] = poly.reduced(self.rels)
+        #print self.mat
                     
     #number of rows in the matrix. OK over skew field
-    def nrows(self):
+    def nRows(self):
        return len(self.mat)
     
     #number of columns in the matrix. OK over skew field
-    def ncols(self):
-       return self.nrows()
+    def nCols(self):
+       return self.nRows()
     
     #will return the quotient to multiply row by. OK over skew field
-    def div(self,poly1,poly2):
+    def quotient(self,poly1,poly2):
         q = poly1.quotient(poly2)
         return q.reduced(self.rels)
         
-    def notzero(self,poly):
-        return not poly.isZero()
 
 #-------methods to diagonalize-------#
 
-    def clear_row(self,i):
-        mindeg = 0
-        for j in range(0,self.ncols()):
-            #print ("in clear_row " + str(i) + ", " + str(j) + " ok")
-            if self.notzero(self.mat[i][j]):
-                #print "in row " + str(i) + ", " + str(j) + " is not zero"
-                if self.lowestpower(self.mat[i][j]) < mindeg:
-                    mindeg = self.lowestpower(self.mat[i][j])
-        #print mindeg
-        pow = SkewFieldPolynomial([SkewFieldMonomial(SkewFieldSentence.one(),SkewFieldSentence.one(),-1*mindeg)])
-        #print pow
-        self.scale_row(i,pow)
+    def clearRow(self, row):
+        minDegree = 0
+        for col in range(self.nCols()):
+            #print ("in clearRow " + str(row) + ", " + str(col) + " ok")
+            if not self.mat[row][col].isZero():
+                #print "in row " + str(row) + ", " + str(col) + " is not zero"
+                if self.mat[row][col].lowestPower < minDegree:
+                    minDegree = self.mat[row][col].lowestPower
+        #print minDegree
+        tPower = SkewFieldPolynomial([SkewFieldMonomial(
+            SkewFieldSentence.one(),SkewFieldSentence.one(),-minDegree)])
+        #print tPower
+        self.scaleRow(row, tPower)
     
-    def kill_negatives(self):
-        for i in range(0,self.nrows()):
-            #print (str(i) + " ok")
-            self.clear_row(i)
+    def killNegatives(self):
+        for row in range(self.nRows()):
+            #print (str(row) + " ok")
+            self.clearRow(row)
         print "done killing negatives"
             
    #finds position of minimum degree elt of matrix starting at (i,i)    
-    def minpos(self,i):
+    def minPosition(self, i):
         mindeg = -2
-        minpos = (i, i)
-        for j in range(i,self.nrows()):
-            for k in range(i, self.ncols()):
-                #print self.degree(self.mat[j][k])
-                if self.degree(self.mat[j][k]) > -1:
-                    if mindeg == -2 or self.degree(self.mat[j][k]) < mindeg:
-                        mindeg = self.degree(self.mat[j][k])
-                        minpos = (j, k)
-                        #print minpos
-        return minpos
+        minPosition = (i, i)
+        for row in range(i,self.nRows()):
+            for col in range(i, self.nCols()):
+                #print self.degree(self.mat[row][col])
+                if not self.mat[row][col].isZero():
+                    if mindeg == -2 or self.mat[row][col].degree() < mindeg:
+                        mindeg = self.mat[row][col].degree()
+                        minPosition = (row, col)
+                        #print minPosition
+        return minPosition
         
-    def mintotop(self,i):
-        min = self.minpos(i)
+    def minToTop(self, row):
+        min = self.minPosition(row)
         #print str(min)
-        self.swap_rows(i,min[0])
+        self.swapRows(row, min[0])
         #print "swapped rows"
-        self.swap_columns(i,min[1])
+        self.swapColumns(row ,min[1])
         #print "swapped columns"
     
-    def killcolentry(self,i,j):
-        q = self.div(self.mat[j][i],self.mat[i][i])
-        print "result of dividing col entry " + str(i) + " by " + str(j) + " is " + str(q)
-        self.add_multiple_of_row(j,i,q.aInv().reduced(self.rels))
+    def killColEntry(self, i, j):
+        q = self.quotient(self.mat[j][i], self.mat[i][i])
+        #print "result of dividing col entry " + str(i) + " by " + str(j) + " is " + str(q)
+        self.addMultOfRow(j, i, q.aInv().reduced(self.rels))
     
-    def killrowentry(self,i,j):
-        q = self.div(self.mat[i][j],self.mat[i][i])
-        print "result of dividing row entry " + str(i) + " by " + str(j) + " is " + str(q)
-        self.add_multiple_of_col(j,i,q.aInv().reduced(self.rels))
+    def killRowEntry(self, i, j):
+        q = self.quotient(self.mat[i][j],self.mat[i][i])
+        #print "result of dividing row entry " + str(i) + " by " + str(j) + " is " + str(q)
+        self.addMultOfColumn(j, i, q.aInv().reduced(self.rels))
         
-    def killrowcol(self,i):
-        self.mintotop(i)
-        print "mintotop successful"
-        for j in range(i+1,self.nrows()):
-            if self.notzero(self.mat[j][i]):
-                self.killcolentry(i,j)
-                self.killrowcol(i)
-        for k in range(i+1,self.ncols()):
-            if self.notzero(self.mat[i][k]):
-                self.killrowentry(i,k)
-                self.killrowcol(i)
-        print self.mat
+    def killRowCol(self,i):
+        self.minToTop(i)
+        #print "minToTop successful"
+        for row in range(i+1, self.nRows()):
+            if not self.mat[row][i].isZero():
+                self.killColEntry(i, row)
+                self.killRowCol(i)
+        for col in range(i+1, self.nCols()):
+            if not self.mat[i][col].isZero():
+                self.killRowEntry(i, col)
+                self.killRowCol(i)
+        #print self.mat
         
     def diagonalize(self):
-        self.kill_negatives()
-        for i in range(0,self.nrows()):
-            print "in at " + str(i)
-            self.killrowcol(i)
+        self.killNegatives()
+        for i in range(self.nRows()):
+            #print "in at " + str(i)
+            self.killRowCol(i)
             
     #Only applicable for diagonal matrix
     def delta1(self):
         det = 0
-        for row in range(self.ncol()):
-            det += matrix[row][row].tpowerDiff()
+        for row in range(self.nCols()):
+            det += self.mat[row][row].powerDiff()
         return det
 
 
@@ -178,37 +168,83 @@ class MatPoly():
 # MAIN
 ################################################################################
 
+
 def main(argv=None):
 
 
-    relations = [SkewFieldWord("a_0^1 * b_-1^-1 * e_-1^1 * e_0^-1"),
+    relations6_2 = [SkewFieldWord("a_0^1 * b_-1^-1 * e_-1^1 * e_0^-1"),
                  SkewFieldWord("b_0^1 * c_0^-1 * e_1^1"),
                  SkewFieldWord("c_0^1 * e_-1^1 * e_0^-2 * e_1^1 * e_2^-1"),
                  SkewFieldWord("d_0^1 * e_-1^-1 * e_1^-1"),
                  SkewFieldWord("e_0^1 * e_1^-3 * e_2^3 * e_3^-3 * e_4^1")]
 
-    testmatrix = [[SkewFieldPolynomial("(1 + -1 * b_2^-1 * d_3^-1) / (1) * T^1 ++ (1 + -1 * b_2^-1* d_2^1 * d_3^-1) / (1) * T^0"),
+    testmatrix6_2 = [[SkewFieldPolynomial("(1 + -1 * b_2^-1 * d_3^-1) / (1) * T^1 ++ (1 + -1 * b_2^-1* d_2^1 * d_3^-1) / (1) * T^0"),
                    SkewFieldPolynomial("(-1 * b_2^-1 * d_3^-1) / (1) * T^2"),
-                   SkewFieldPolynomial("0"), SkewFieldPolynomial("0"),
+                   SkewFieldPolynomial.zero(), SkewFieldPolynomial.zero(),
                    SkewFieldPolynomial("(1) / (1) * T^2 ++ (-1 * b_2^-1 * d_2^1 * d_3^-1) / (1) * T^1"),
-                   SkewFieldPolynomial("0")],
+                   SkewFieldPolynomial.zero()],
                   [SkewFieldPolynomial("(1 + -1 * b_1^1 * e_1^-1) / (1) * T^0"), SkewFieldPolynomial("(1) / (1) * T^1"),
-                   SkewFieldPolynomial("(-1 * b_1^1 * c_0^-1 * e_1^-1) / (1) * T^0"), SkewFieldPolynomial("0"),
-                   SkewFieldPolynomial("0"), SkewFieldPolynomial("(-1 * b_1^1 * e_1^-1) / (1) * T^1 ++ (1 * b_1^1 * c_0^-1 * e_1^-1) / (1) * T^0")],
-                  [SkewFieldPolynomial("(1 + -1 * c_1^1) / (1) * T^0"), SkewFieldPolynomial("0"),
+                   SkewFieldPolynomial("(-1 * b_1^1 * c_0^-1 * e_1^-1) / (1) * T^0"), SkewFieldPolynomial.zero(),
+                   SkewFieldPolynomial.zero(), SkewFieldPolynomial("(-1 * b_1^1 * e_1^-1) / (1) * T^1 ++ (1 * b_1^1 * c_0^-1 * e_1^-1) / (1) * T^0")],
+                  [SkewFieldPolynomial("(1 + -1 * c_1^1) / (1) * T^0"), SkewFieldPolynomial.zero(),
                    SkewFieldPolynomial("(1) / (1) * T^1"), SkewFieldPolynomial("(-1 * a_3^1 * c_1^1) / (1) * T^0"),
-                   SkewFieldPolynomial("0"), SkewFieldPolynomial("0")],
+                   SkewFieldPolynomial.zero(), SkewFieldPolynomial.zero()],
                   [SkewFieldPolynomial("(1 * a_4^-1 + -1 * a_4^-1 * b_2^1 * d_3^1) / (1) * T^1 ++ (1 + -1 * a_4^-1 * b_1^-1 * b_2^1 * d_3^1) / (1) * T^0"),
                    SkewFieldPolynomial("(1 * a_4^-1) / (1) * T^2 ++ (-1 * a_4^-1 * b_1^-1 * b_2^1 * d_3^1) / (1) * T^1"),
-                   SkewFieldPolynomial("0"),SkewFieldPolynomial("(1) / (1) * T^1"),
-                   SkewFieldPolynomial("(-1 * a_4^-1 * b_2^1 * d_3^1) / (1) * T^2"), SkewFieldPolynomial("0")],
-                  [SkewFieldPolynomial("(1 + -1 * a_4^1 * d_2^-1) / (1) * T^0"), SkewFieldPolynomial("0"), SkewFieldPolynomial("0"),
+                   SkewFieldPolynomial.zero(),SkewFieldPolynomial("(1) / (1) * T^1"),
+                   SkewFieldPolynomial("(-1 * a_4^-1 * b_2^1 * d_3^1) / (1) * T^2"), SkewFieldPolynomial.zero()],
+                  [SkewFieldPolynomial("(1 + -1 * a_4^1 * d_2^-1) / (1) * T^0"), SkewFieldPolynomial.zero(), SkewFieldPolynomial.zero(),
                    SkewFieldPolynomial("(-1 * a_4^1 * d_2^-1) / (1) * T^1 ++ (1 * a_4^1 * d_2^-1 * e_0^-1) / (1) * T^0"),
                    SkewFieldPolynomial("(1) / (1) * T^1"), SkewFieldPolynomial("(-1 * a_4^1 * d_2^-1 * e_0^-1) / (1) * T^0")],
-                  [SkewFieldPolynomial("(1 + -1 * c_1^-1 * e_1^1) / (1) * T^0"), SkewFieldPolynomial("0"),
+                  [SkewFieldPolynomial("(1 + -1 * c_1^-1 * e_1^1) / (1) * T^0"), SkewFieldPolynomial.zero(),
                    SkewFieldPolynomial("(-1 * c_1^-1 * e_1^1) / (1) * T^1 ++ (1 * c_1^-1 * e_1^1) / (1) * T^0"),
-                   SkewFieldPolynomial("0"), SkewFieldPolynomial("0"), SkewFieldPolynomial("(1) / (1) * T^1")]]
+                   SkewFieldPolynomial.zero(), SkewFieldPolynomial.zero(), SkewFieldPolynomial("(1) / (1) * T^1")]]
 
+    print("relations6_2 = " + str(relations6_2))
+    print("testmatrix6_2 = " +str(testmatrix6_2))
+
+    mat6_2 = SFPolyMat(testmatrix6_2, relations6_2)
+
+    assert(mat6_2.mat == testmatrix6_2)
+
+
+
+    relations3_1 = [SkewFieldWord("a_0^1 * b_0^-1 * b_1^1"),
+                    SkewFieldWord("b_0^1 * b_1^-1 * b_2^1")]
+
+    testmatrix3_1 = [[SkewFieldPolynomial("(1 + -1 * b_1^-1) / (1) * T^0"),
+                      SkewFieldPolynomial("(-1 * a_0^-1 * b_1^-1) / (1) * T^0"),
+                      SkewFieldPolynomial("0")],
+                     [SkewFieldPolynomial("(1 + -1 * a_1^1) / (1) * T^0"),
+                      SkewFieldPolynomial("(1) / (1) * T^1"),
+                      SkewFieldPolynomial("(-1 * b_0^1 * b_1^-1 + 1 * b_1^-1) / (1 + -1 * b_1^-1) * T^1 ++ (-1 * b_0^-1 + 1 * b_0^-1 * b_2^-1) / (1 + -1 * b_1^-1) * T^0")],
+                     [SkewFieldPolynomial("(1 + -1 * a_1^-1 * b_1^1) / (1) * T^0"),
+                      SkewFieldPolynomial("(-1 * a_1^-1 * b_1^1) / (1) * T^1 ++ (1 * a_1^-1 * b_1^1) / (1) * T^0"),
+                      SkewFieldPolynomial("(1 + -1 * b_1^-1 * b_2^1) / (1 + -1 * b_1^-1) * T^1 ++ (-1 * b_0^-1 + 1 * b_0^-1 * b_2^1) / (1 + -1 * b_1^-1) * T^0")]]
+
+    rel1 = [SkewFieldWord("a_0^1 * a_5^-1 * c_1^1"),
+            SkewFieldWord("b_0^1 * b_5^-1 * c_2^1"), 
+            SkewFieldWord("c_0^2 * c_1^-1 * c_7^-1")]
+
+    mat1 = [[SkewFieldPolynomial("(1 * a_0^1) / (1) * T^1"),
+             SkewFieldPolynomial("(1 * b_0^1) / (1) * T^1"),
+             SkewFieldPolynomial("(1 * c_0^1) / (1) * T^1")], 
+            [SkewFieldPolynomial("(1 * a_0^2) / (1) * T^2"),
+             SkewFieldPolynomial("(1 * b_0^2) / (1) * T^2"),
+             SkewFieldPolynomial("(1 * c_0^2) / (1) * T^2")], 
+            [SkewFieldPolynomial("(1 * a_0^3) / (1) * T^3"),
+             SkewFieldPolynomial("(1 * b_0^3) / (1) * T^3"),
+             SkewFieldPolynomial("(1 * c_0^3) / (1) * T^3")]]
+
+    mat1 = SFPolyMat(mat1, rel1)
+
+    #print("Swap rows 0 and 2 = " + str(mat1swap.mat))
+    #mat1.swapRows(0, 2)
+    #assert(mat1.mat == mat1swap.mat)
+
+    #matrix3_1 = SFPolyMat(testmatrix3_1, relations3_1)
+    #matrix3_1.diagonalize()
+    #print(matrix3_1.delta1())
 
 
 if __name__ == "__main__":
