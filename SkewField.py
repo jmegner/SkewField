@@ -64,7 +64,6 @@ def updateCounts(counter, otherGuy):
     # else assume list/tuple/set
     else:
         for key in otherGuy:
-            #key = key.deepcopy() # removed for performance
             counter[key] = counter.get(key, 0) + 1;
 
     # step2: simplify by removing zero-valued items
@@ -368,7 +367,7 @@ class SkewFieldWord():
         return SkewFieldWord(mInvLetterCtr)
 
 
-    def firstAndLastOfAlpha(self, alpha):
+    def extremesOfAlpha(self, alpha):
         minSub = sys.maxint
         powerForMinSub = 0
 
@@ -396,7 +395,7 @@ class SkewFieldWord():
             power = self.letterCtr[letter]
             sub = letter.sub
             (minSub, minPower, maxSub, maxPower) \
-                = relations[alpha].firstAndLastOfAlpha(alpha)
+                = relations[alpha].extremesOfAlpha(alpha)
 
             if not(
                 (sub < minSub and power in range (abs(minPower))) or
@@ -413,7 +412,7 @@ class SkewFieldWord():
         power = self.letterCtr[letter]
         sub = letter.sub
         (minSub, minPower, maxSub, maxPower) \
-            = relations[alpha].firstAndLastOfAlpha(alpha)
+            = relations[alpha].extremesOfAlpha(alpha)
 
         if(sub < minSub):
             increment = sub - minSub
@@ -1274,7 +1273,7 @@ def SkewFieldMain(argv=None):
         wrd.times(wrd)
         wrd.dividedBy(wrd)
         wrd.mInv()
-        wrd.firstAndLastOfAlpha(0)
+        wrd.extremesOfAlpha(0)
 
     print("")
     print("SENTENCE ##########################################################")
