@@ -165,7 +165,7 @@ class SkewFieldLetter():
             return alpha
         elif isinstance(alpha, str):
 
-            if re.match("^[a-z]+$", alpha) == None:
+            if re.match("^[a-z]+$", alpha) is None:
                 raise ValueError("can not use arg " + str(alpha))
 
             intRep = -1;
@@ -226,7 +226,7 @@ class SkewFieldWord():
                     (letterStr, power) = letterWithPower.split("^")
 
                     # if no exponentation symbol, letter implicitly raised to 0
-                    if power == None:
+                    if power is None:
                         power = 0
 
                     updateCounts(
@@ -244,7 +244,7 @@ class SkewFieldWord():
             return "1"
 
         letterStrs = list()
-        for letter in sorted(self.letterCtr.keys()):
+        for letter in sorted(self.letterCtr.iterkeys()):
             letterStrs.append(str(letter) + "^" + str(self.letterCtr[letter]))
 
         return " * ".join(letterStrs)
@@ -268,8 +268,8 @@ class SkewFieldWord():
         # go through letters in each word in order;
         # compare the letter, then compare the power
 
-        selfSortedLetters = sorted(self.letterCtr.keys())
-        otherSortedLetters = sorted(other.letterCtr.keys())
+        selfSortedLetters = sorted(self.letterCtr.iterkeys())
+        otherSortedLetters = sorted(other.letterCtr.iterkeys())
 
         # zip takes care of differently sized lists by stopping at end of
         # shorter list
@@ -368,48 +368,40 @@ class SkewFieldWord():
         return SkewFieldWord(mInvLetterCtr)
 
 
-    def firstOfAlpha(self, alpha):
+    def firstAndLastOfAlpha(self, alpha):
         minSub = sys.maxint
         powerForMinSub = 0
+
+        maxSub = -sys.maxint
+        powerForMaxSub = 0
 
         for letter, power in self.letterCtr.iteritems():
             if letter.alpha == alpha and letter.sub < minSub:
                 minSub = letter.sub
                 powerForMinSub = power
 
-        if minSub == sys.maxint:
-            return None
-
-        return (minSub, powerForMinSub)
-
-
-    def lastOfAlpha(self, alpha):
-        maxSub = -sys.maxint
-        powerForMaxSub = 0
-
-        for letter, power in self.letterCtr.iteritems():
             if letter.alpha == alpha and letter.sub > maxSub:
                 maxSub = letter.sub
                 powerForMaxSub = power
 
-        if maxSub == sys.maxint:
+        if minSub == sys.maxint:
             return None
 
-        return (maxSub, powerForMaxSub)
+        return (minSub, powerForMinSub, maxSub, powerForMaxSub)
 
 
     def firstAbnormalLetter(self, relations):
-        for letter in sorted(self.letterCtr.keys()):
+        for letter in sorted(self.letterCtr.iterkeys()):
             alpha = letter.alpha
             power = self.letterCtr[letter]
-            subscript = letter.sub
-            (minSubscript, minPower) = relations[alpha].firstOfAlpha(alpha)
-            (maxSubscript, maxPower) = relations[alpha].lastOfAlpha(alpha)
+            sub = letter.sub
+            (minSub, minPower, maxSub, maxPower) \
+                = relations[alpha].firstAndLastOfAlpha(alpha)
 
             if not(
-                (subscript < minSubscript and power in range (abs(minPower))) or
-                (subscript > maxSubscript and power in range (abs(maxPower))) or
-                (subscript in range (minSubscript, maxSubscript))):
+                (sub < minSub and power in range (abs(minPower))) or
+                (sub > maxSub and power in range (abs(maxPower))) or
+                (sub in range (minSub, maxSub))):
 
                 return letter
 
@@ -419,12 +411,12 @@ class SkewFieldWord():
     def reducedAtLetter(self, letter, relations):
         alpha = letter.alpha
         power = self.letterCtr[letter]
-        subscript = letter.sub
-        (minSubscript, minPower) = relations[alpha].firstOfAlpha(alpha)
-        (maxSubscript, maxPower) = relations[alpha].lastOfAlpha(alpha)
+        sub = letter.sub
+        (minSub, minPower, maxSub, maxPower) \
+            = relations[alpha].firstAndLastOfAlpha(alpha)
 
-        if(subscript < minSubscript):
-            increment = subscript - minSubscript
+        if(sub < minSub):
+            increment = sub - minSub
             if minPower < 0:
                 exponent = 1
             else:
@@ -434,8 +426,8 @@ class SkewFieldWord():
             newRelation = newRelation.raisedTo(-exponent)
             return self.times(newRelation)
 
-        if(subscript >= maxSubscript):
-            increment = subscript - maxSubscript
+        if(sub >= maxSub):
+            increment = sub - maxSub
             if maxPower < 0:
                 exponent = 1
             else:
@@ -447,12 +439,16 @@ class SkewFieldWord():
 
 
     def reduced(self, relations):
-        abnormalLetter = self.firstAbnormalLetter(relations)
-        if abnormalLetter is None:
-            return self.deepcopy()
-        else:
-            return self.reducedAtLetter(abnormalLetter, relations) \
-                .reduced(relations)
+        result = self
+
+        while True:
+            abnormalLetter = result.firstAbnormalLetter(relations)
+            if abnormalLetter is None:
+                break
+
+            result = result.reducedAtLetter(abnormalLetter, relations)
+
+        return result
 
 
     def raisedTo(self, power):
@@ -506,7 +502,7 @@ class SkewFieldSentence():
             return str(self.wordCtr.values()[0])
 
         wordStrs = list()
-        for word in sorted(self.wordCtr.keys()):
+        for word in sorted(self.wordCtr.iterkeys()):
             coef = self.wordCtr[word]
             if word.isOne():
                 wordStrs.append(str(coef))
@@ -521,14 +517,14 @@ class SkewFieldSentence():
 
     def __hash__(self):
         hashVal = 0
-        for word, coef in self.wordCtr.items():
+        for word, coef in self.wordCtr.iteritems():
             hashVal += hash(word) * coef
         return hashVal
 
 
     def __cmp__(self, other):
-        selfSortedWords = sorted(self.wordCtr.keys())
-        otherSortedWords = sorted(other.wordCtr.keys())
+        selfSortedWords = sorted(self.wordCtr.iterkeys())
+        otherSortedWords = sorted(other.wordCtr.iterkeys())
 
         # zip takes care of differently sized lists by stopping at end of
         # shorter list
@@ -598,7 +594,7 @@ class SkewFieldSentence():
 
     def increasedSubs(self, increment):
         result = SkewFieldSentence()
-        for word, coef in self.wordCtr.items():
+        for word, coef in self.wordCtr.iteritems():
             result.wordCtr[word.increasedSubs(increment)] = coef
         return result
 
@@ -664,7 +660,7 @@ class SkewFieldMonomial():
 
             # if not in formal mono-string format, try to parse as a sentence
             # with implicit denom=one and tpower=0
-            if match == None:
+            if match is None:
                 self.numer = SkewFieldSentence(args[0])
                 self.denom = SkewFieldSentence.one()
                 self.tpower = 0
@@ -1092,7 +1088,7 @@ class SkewFieldPolynomial():
 
     def reduced(self, relations):
         newMonos = []
-        for mono in self.monoDict.values():
+        for mono in self.monoDict.itervalues():
             newMonos.append(mono.reduced(relations))
         return SkewFieldPolynomial(newMonos)
 
@@ -1278,8 +1274,7 @@ def SkewFieldMain(argv=None):
         wrd.times(wrd)
         wrd.dividedBy(wrd)
         wrd.mInv()
-        wrd.firstOfAlpha(0)
-        wrd.lastOfAlpha(0)
+        wrd.firstAndLastOfAlpha(0)
 
     print("")
     print("SENTENCE ##########################################################")
