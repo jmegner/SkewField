@@ -59,12 +59,12 @@ def updateCounts(counter, otherGuy):
     # step1: merge
 
     if isinstance(otherGuy, dict):
-        for key, value in otherGuy.items():
+        for key, value in otherGuy.iteritems():
             counter[key] = counter.get(key, 0) + value;
     # else assume list/tuple/set
     else:
         for key in otherGuy:
-            key = key.deepcopy()
+            #key = key.deepcopy()
             counter[key] = counter.get(key, 0) + 1;
 
     # step2: simplify by removing zero-valued items
@@ -258,7 +258,7 @@ class SkewFieldWord():
         #return hash(str(self))
         hashVal = 0
 
-        for letter, power in self.letterCtr.items():
+        for letter, power in self.letterCtr.iteritems():
             hashVal += hash(letter) * power
 
         return hashVal
@@ -334,9 +334,8 @@ class SkewFieldWord():
 
     def increasedSubs(self, increment):
         newLetterCtr = dict()
-        for letter, power in self.letterCtr.items():
-            newLetter = letter.deepcopy()
-            newLetter.sub += increment
+        for letter, power in self.letterCtr.iteritems():
+            newLetter = SkewFieldLetter(letter.alpha, letter.sub + increment)
             newLetterCtr[newLetter] = int(power)
         return SkewFieldWord(newLetterCtr)
 
@@ -364,7 +363,7 @@ class SkewFieldWord():
 
     def mInv(self):
         mInvLetterCtr = dict()
-        for letter, power in self.letterCtr.items():
+        for letter, power in self.letterCtr.iteritems():
             mInvLetterCtr[letter] = -power
         return SkewFieldWord(mInvLetterCtr)
 
@@ -443,7 +442,7 @@ class SkewFieldWord():
     def raisedTo(self, power):
         newWord = SkewFieldWord()
 
-        for letter, letterPower in self.letterCtr.items():
+        for letter, letterPower in self.letterCtr.iteritems():
             newWord.letterCtr[letter.deepcopy()] = letterPower * power
 
         return newWord
@@ -1606,7 +1605,6 @@ def SkewFieldMain(argv=None):
 
     # RESUME: asMonoList
     # TODO: much more poly testing
-
 
     # just-run-it tests
 

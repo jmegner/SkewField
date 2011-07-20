@@ -168,8 +168,8 @@ class SFPolyMat():
             #print ("in clearRow " + str(row) + ", " + str(col) + " ok")
             if not self.mat[row][col].isZero():
                 #print "in row " + str(row) + ", " + str(col) + " is not zero"
-                if self.mat[row][col].lowestPower < minDegree:
-                    minDegree = self.mat[row][col].lowestPower
+                if self.mat[row][col].lowestPower() < minDegree:
+                    minDegree = self.mat[row][col].lowestPower()
         #print minDegree
         tPower = SkewFieldPolynomial([SkewFieldMonomial(
             SkewFieldSentence.one(),SkewFieldSentence.one(),-minDegree)])
@@ -305,7 +305,7 @@ def main(argv=None):
 
     mat4_1 = SFPolyMat(testmat4_1, rel4_1)
     mat4_1.diagonalize()
-    print(mat4_1.delta1())
+    print("matrix4_1.delta1() = " + str(matrix4_1.delta1()))
 
     return 1
 
