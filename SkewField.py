@@ -384,11 +384,11 @@ class SkewFieldWord():
 
 
     def lastOfAlpha(self, alpha):
-        maxSub = sys.maxint
+        maxSub = -sys.maxint
         powerForMaxSub = 0
 
         for letter, power in self.letterCtr.iteritems():
-            if letter.alpha == alpha and letter.sub < maxSub:
+            if letter.alpha == alpha and letter.sub > maxSub:
                 maxSub = letter.sub
                 powerForMaxSub = power
 
