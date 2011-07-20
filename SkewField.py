@@ -369,17 +369,33 @@ class SkewFieldWord():
 
 
     def firstOfAlpha(self, alpha):
-        for letter in sorted(self.letterCtr.keys()):
-            if letter.alpha == alpha:
-                return (letter.sub, self.letterCtr[letter])
-        return None
+        minSub = sys.maxint
+        powerForMinSub = 0
+
+        for letter, power in self.letterCtr.iteritems():
+            if letter.alpha == alpha and letter.sub < minSub:
+                minSub = letter.sub
+                powerForMinSub = power
+
+        if minSub == sys.maxint:
+            return None
+
+        return (minSub, powerForMinSub)
 
 
     def lastOfAlpha(self, alpha):
-        for letter in reversed(sorted(self.letterCtr.keys())):
-            if letter.alpha == alpha:
-                return (letter.sub, self.letterCtr[letter])
-        return None
+        maxSub = sys.maxint
+        powerForMaxSub = 0
+
+        for letter, power in self.letterCtr.iteritems():
+            if letter.alpha == alpha and letter.sub < maxSub:
+                maxSub = letter.sub
+                powerForMaxSub = power
+
+        if maxSub == sys.maxint:
+            return None
+
+        return (maxSub, powerForMaxSub)
 
 
     def firstAbnormalLetter(self, relations):
@@ -1673,7 +1689,7 @@ def SkewFieldMain(argv=None):
 
         print("wrd = " + str(wrd))
         print("    reduced = " + str(wrdReduced))
-        print("    answer = " + wrdReducedStr)
+        print("    answer  = " + wrdReducedStr)
 
     # test sentence reduction
 
