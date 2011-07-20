@@ -307,7 +307,7 @@ def main(argv=None):
     mat4_1.diagonalize()
     print("mat4_1.delta1() = " + str(mat4_1.delta1()))
 
-    return 1
+    # return 1
 
     relations6_2 = [SkewFieldWord("a_0^1 * b_-1^-1 * e_-1^1 * e_0^-1"),
                  SkewFieldWord("b_0^1 * c_0^-1 * e_1^1"),

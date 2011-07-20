@@ -64,7 +64,7 @@ def updateCounts(counter, otherGuy):
     # else assume list/tuple/set
     else:
         for key in otherGuy:
-            #key = key.deepcopy()
+            #key = key.deepcopy() # removed for performance
             counter[key] = counter.get(key, 0) + 1;
 
     # step2: simplify by removing zero-valued items
@@ -618,11 +618,13 @@ class SkewFieldSentence():
     def reduced(self, relations):
         reducedWordCtr = dict()
 
-        for word in self.wordCtr.keys():
+        for word, coef in self.wordCtr.iteritems():
             updateCounts(reducedWordCtr,
-                { word.reduced(relations) : self.wordCtr[word] })
+                { word.reduced(relations) : coef })
 
         return SkewFieldSentence(reducedWordCtr)
+
+
 
 
 ################################################################################
@@ -878,7 +880,8 @@ class SkewFieldPolynomial():
 
             # else don't have mono of that tpower; simple insert
             else:
-                self.monoDict[otherMono.tpower] = otherMono.deepcopy();
+                # decided not to deepcopy otherMono for performance
+                self.monoDict[otherMono.tpower] = otherMono
 
         self.canonize()
 
@@ -1001,6 +1004,7 @@ class SkewFieldPolynomial():
                 product.append(selfMono.times(otherMono))
 
         return SkewFieldPolynomial(product)
+
 
     def quotient(self, denominator):
         return self.quotientAndRemainder(denominator)[0]
