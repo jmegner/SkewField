@@ -43,7 +43,7 @@ a class does not necessarily have every function in the list;
 
 
 global SFFileVersion
-SFFileVersion = "0.19"
+SFFileVersion = "0.20"
 
 
 import sys
@@ -51,7 +51,6 @@ import getopt
 import re
 import collections
 import math
-#from sage.all import *
 
 
 # to help overcome our heartfelt loss of the treasured Counter class...
@@ -61,7 +60,6 @@ def updateCounts(counter, otherGuy):
 
     if isinstance(otherGuy, dict):
         for key, value in otherGuy.items():
-            key = key.deepcopy()
             counter[key] = counter.get(key, 0) + value;
     # else assume list/tuple/set
     else:
@@ -111,7 +109,15 @@ class SkewFieldLetter():
 
 
     def __hash__(self):
-        return hash(str(self))
+        # imagine alpha as a row index and sub as a col index
+        # and we're using the bijection of an infinite 2d array into an
+        # infinite 1d array by traversing the 2d array diagonally;
+        # this way our hash function is good at generating unique 1-tuples for
+        # any combination of the alpha-sub 2-tuples
+
+        r = self.alpha
+        c = self.sub
+        return c * (c + 1) // 2 + r * c + r * (r + 1) // 2 + r
 
 
     def __cmp__(self, other):
@@ -234,7 +240,7 @@ class SkewFieldWord():
 
 
     def __str__(self):
-        if self == SkewFieldWord.one():
+        if self.isOne():
             return "1"
 
         letterStrs = list()
@@ -249,7 +255,13 @@ class SkewFieldWord():
 
 
     def __hash__(self):
-        return hash(str(self))
+        #return hash(str(self))
+        hashVal = 0
+
+        for letter, power in self.letterCtr.items():
+            hashVal += hash(letter) * power
+
+        return hashVal
 
 
     def __cmp__(self, other):
@@ -305,7 +317,7 @@ class SkewFieldWord():
 
 
     def isOne(self):
-        return self == SkewFieldWord.one()
+        return len(self.letterCtr) == 0
 
 
     def isScalar(self):
@@ -493,7 +505,10 @@ class SkewFieldSentence():
 
 
     def __hash__(self):
-        return hash(str(self))
+        hashVal = 0
+        for word, coef in self.wordCtr.items():
+            hashVal += hash(word) * coef
+        return hashVal
 
 
     def __cmp__(self, other):
