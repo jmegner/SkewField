@@ -180,7 +180,7 @@ class SFPolyMat():
         for row in range(self.nRows()):
             #print (str(row) + " ok")
             self.clearRow(row)
-        print "done killing negatives"
+        #print "done killing negatives"
 
    #finds position of minimum degree elt of matrix starting at (i,i)
     def minPosition(self, i):
@@ -305,7 +305,7 @@ def main(argv=None):
 
     mat4_1 = SFPolyMat(testmat4_1, rel4_1)
     mat4_1.diagonalize()
-    print("matrix4_1.delta1() = " + str(matrix4_1.delta1()))
+    print("mat4_1.delta1() = " + str(mat4_1.delta1()))
 
     return 1
 
