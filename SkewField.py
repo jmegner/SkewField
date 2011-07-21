@@ -1774,7 +1774,7 @@ def SkewFieldMain(argv=None):
     wrd50Str = "a_3^3"
     wrd50 = SkewFieldWord(wrd50Str)
     print("wrd50 = " + str(wrd50))
-    print(relations2)
+    print("relations2 = " + str(relations2))
     wrd50Red = wrd50.reduced(relations2)
     print("wrd50Red = " + str(wrd50Red))
 
