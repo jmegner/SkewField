@@ -397,11 +397,12 @@ class SkewFieldWord():
             (minSub, minPower, maxSub, maxPower) \
                 = relations[alpha].extremesOfAlpha(alpha)
 
-            if not(
-                (sub < minSub and power in range (abs(minPower))) or
-                (sub > maxSub and power in range (abs(maxPower))) or
-                (sub in range (minSub, maxSub))):
-
+            # letter is abnormal if it is outside of the left-inclusive
+            # minSub..maxSub range and it's power is outside the
+            # 0..abs(relPower) range
+            if (sub < minSub and not (0 <= power < abs(minPower))) \
+                or (sub >= maxSub and not (0 <= power < abs(maxPower))) \
+            :
                 return letter
 
         return None
@@ -414,27 +415,33 @@ class SkewFieldWord():
         (minSub, minPower, maxSub, maxPower) \
             = relations[alpha].extremesOfAlpha(alpha)
 
-        if(sub < minSub):
-            increment = sub - minSub
-            if minPower < 0:
-                exponent = 1
-            else:
-                exponent = 0
-            exponent += power // minPower
-            newRelation = relations[alpha].increasedSubs(increment)
-            newRelation = newRelation.raisedTo(-exponent)
-            return self.times(newRelation)
+        relSub = 0
+        relPower = 0
 
-        if(sub >= maxSub):
-            increment = sub - maxSub
-            if maxPower < 0:
-                exponent = 1
-            else:
-                exponent = 0
-            exponent += power // maxPower
-            newRelation = relations[alpha].increasedSubs(increment)
-            newRelation = newRelation.raisedTo(-exponent)
-            return self.times(newRelation)
+        if sub < minSub:
+            relSub = minSub
+            relPower = minPower
+        elif sub >= maxSub:
+            relSub = maxSub
+            relPower = maxPower
+
+        if relPower == 0:
+            return self
+
+        # integer divisions have all results rounded towards neg infinity
+        # we want integer division rounded towards 0
+        exponent = abs(power) // abs(relPower)
+
+        # if power and relPower same sign, need to have negative exponent
+        if (power >= 0) == (relPower >= 0):
+            exponent = -exponent
+
+        increment = sub - relSub
+
+        newRelation = relations[alpha].increasedSubs(increment)
+        newRelation = newRelation.raisedTo(exponent)
+
+        return self.times(newRelation)
 
 
     def reduced(self, relations):
@@ -1757,6 +1764,19 @@ def SkewFieldMain(argv=None):
         print("poly = " + str(poly))
         print("    reduced = " + str(polyReduced))
         print("    answer = " + polyReducedStr)
+
+
+    relations2 = [
+        SkewFieldWord("a_0^1"),
+        SkewFieldWord("b_0^3"),
+    ]
+
+    wrd50Str = "a_3^3"
+    wrd50 = SkewFieldWord(wrd50Str)
+    print("wrd50 = " + str(wrd50))
+    print(relations2)
+    wrd50Red = wrd50.reduced(relations2)
+    print("wrd50Red = " + str(wrd50Red))
 
     print("")
     print("MISC ##############################################################")
