@@ -428,13 +428,10 @@ class SkewFieldWord():
         if relPower == 0:
             return self
 
-        # integer divisions have all results rounded towards neg infinity
-        # we want integer division rounded towards 0
-        exponent = abs(power) // abs(relPower)
+        exponent = -(power // relPower)
 
-        # if power and relPower same sign, need to have negative exponent
-        if (power >= 0) == (relPower >= 0):
-            exponent = -exponent
+        if power % relPower != 0 and relPower < 0:
+            exponent -= 1
 
         increment = sub - relSub
 
@@ -1098,28 +1095,40 @@ class SkewFieldPolynomial():
             newMonos.append(mono.reduced(relations))
         return SkewFieldPolynomial(newMonos)
 
+
 ################################################################################
 # MAIN
 ################################################################################
 
+def noPrint(arg):
+    pass
+
+def yesPrint(arg):
+    print(arg)
 
 
 def SkewFieldMain(argv=None):
 
-    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-    print("@ SkewField.py FileVersion = " + SFFileVersion)
-    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-    print("")
+    cprint = noPrint
 
-    print("")
-    print("LETTER ############################################################")
+    if len(argv) > 1:
+        for arg in argv[1:]:
+            if arg == "-v" or arg == "--verbose":
+                cprint = yesPrint
+
+    cprint("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+    cprint("@ SkewField.py FileVersion = " + SFFileVersion)
+    cprint("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
+    cprint("")
+    cprint("LETTER ###########################################################")
 
     global ltrA0Str
     ltrA0Str = "a_0"
 
     global ltrA0
     ltrA0 = SkewFieldLetter("a", 0)
-    print("ltrA0 = " + str(ltrA0))
+    cprint("ltrA0 = " + str(ltrA0))
 
     # basic construction-representation test
     assert(str(ltrA0) == ltrA0Str)
@@ -1168,8 +1177,8 @@ def SkewFieldMain(argv=None):
         ltr.asPoly()
         ltr.increasedSubs(1)
 
-    print("")
-    print("WORD ##############################################################")
+    cprint("")
+    cprint("WORD #############################################################")
 
     # basic construction-representation test
 
@@ -1185,7 +1194,7 @@ def SkewFieldMain(argv=None):
 
     global wrd1
     wrd1 = SkewFieldWord(ltrs1)
-    print("wrd1 = " + str(wrd1))
+    cprint("wrd1 = " + str(wrd1))
 
     assert(str(wrd1) == wrd1Str)
     assert(wrd1 == wrd1)
@@ -1194,7 +1203,7 @@ def SkewFieldMain(argv=None):
 
     global wrd1Again
     wrd1Again = SkewFieldWord(wrd1Str)
-    print("wrd1Again = " + str(wrd1Again))
+    cprint("wrd1Again = " + str(wrd1Again))
     assert(wrd1 == wrd1Again)
 
     # test increasedSubs
@@ -1202,7 +1211,7 @@ def SkewFieldMain(argv=None):
     wrd2Str = "a_2^1 * b_3^2"
     global wrd2
     wrd2 = wrd1.increasedSubs(2)
-    print("wrd2 = " + str(wrd2))
+    cprint("wrd2 = " + str(wrd2))
     assert(str(wrd2) == wrd2Str)
 
     # test alternate constructor and canonization
@@ -1219,7 +1228,7 @@ def SkewFieldMain(argv=None):
 
     global wrd3
     wrd3 = SkewFieldWord(ltrs3Dict)
-    print("wrd3 = " + str(wrd3))
+    cprint("wrd3 = " + str(wrd3))
     assert(str(wrd3) == wrd3Str)
 
     # test cmp a bit
@@ -1233,10 +1242,10 @@ def SkewFieldMain(argv=None):
     wrd1MInvStr = "a_0^-1 * b_1^-2"
     global wrd1MInv
     wrd1MInv = wrd1.mInv()
-    print("wrd1MInv = " + str(wrd1MInv))
+    cprint("wrd1MInv = " + str(wrd1MInv))
     assert(str(wrd1MInv) == wrd1MInvStr)
     assert(wrd1 == wrd1.mInv().mInv())
-    print("wrd1 * wrd1MInv = " + str(wrd1.times(wrd1MInv)))
+    cprint("wrd1 * wrd1MInv = " + str(wrd1.times(wrd1MInv)))
     assert(SkewFieldWord.one() == wrd1.times(wrd1MInv))
 
     # test times and dividedBy
@@ -1246,7 +1255,7 @@ def SkewFieldMain(argv=None):
 
     global wrd4
     wrd4 = wrd1.times(wrd3)
-    print("wrd1 * wrd3 = wrd4 = " + str(wrd4))
+    cprint("wrd1 * wrd3 = wrd4 = " + str(wrd4))
     assert(str(wrd4) == wrd4Str)
 
     global wrd5Str
@@ -1254,7 +1263,7 @@ def SkewFieldMain(argv=None):
 
     global wrd5
     wrd5 = wrd3.times(wrd1)
-    print("wrd3 * wrd1 = wrd5 = " + str(wrd5))
+    cprint("wrd3 * wrd1 = wrd5 = " + str(wrd5))
     assert(str(wrd5) == wrd5Str)
 
     assert(wrd5.dividedBy(wrd3) == wrd1)
@@ -1282,8 +1291,8 @@ def SkewFieldMain(argv=None):
         wrd.mInv()
         wrd.extremesOfAlpha(0)
 
-    print("")
-    print("SENTENCE ##########################################################")
+    cprint("")
+    cprint("SENTENCE #########################################################")
 
     # test wrd+wrd => sentence
 
@@ -1291,7 +1300,7 @@ def SkewFieldMain(argv=None):
     snt1Str = "1 * a_0^1 + 1 * b_0^1"
     global snt1
     snt1 = SkewFieldWord("a_0^1").plus(SkewFieldWord("b_0^1"))
-    print("wrdA + wrdB = snt1 = " + str(snt1))
+    cprint("wrdA + wrdB = snt1 = " + str(snt1))
     assert(str(snt1) == snt1Str)
 
     global snt1Again
@@ -1305,14 +1314,14 @@ def SkewFieldMain(argv=None):
     snt2Str = "2"
     global snt2
     snt2 = SkewFieldSentence(snt2Str)
-    print("snt2 = " + str(snt2))
+    cprint("snt2 = " + str(snt2))
     assert(str(snt2) == snt2Str)
 
     global snt3Str
     snt3Str = "3 + 4 * a_0^5 + 6 * a_0^7 * b_1^8"
     global snt3
     snt3 = SkewFieldSentence(snt3Str)
-    print("snt3 = " + str(snt3))
+    cprint("snt3 = " + str(snt3))
     assert(str(snt3) == snt3Str)
 
     assert(not snt1.isScalar())
@@ -1325,7 +1334,7 @@ def SkewFieldMain(argv=None):
     snt99Str = "3 + 4 * a_-2^5 + 6 * a_-2^7 * b_-1^8"
     global snt99
     snt99 = snt3.increasedSubs(-2)
-    print("snt99 = " + str(snt99))
+    cprint("snt99 = " + str(snt99))
     assert(str(snt99) == snt99Str)
 
     # test aInv and plus a bit
@@ -1335,7 +1344,7 @@ def SkewFieldMain(argv=None):
 
     global snt3AInv
     snt3AInv = snt3.aInv()
-    print("snt3AInv = " + str(snt3AInv))
+    cprint("snt3AInv = " + str(snt3AInv))
     assert(str(snt3AInv) == snt3AInvStr)
 
     global snt4Str
@@ -1343,7 +1352,7 @@ def SkewFieldMain(argv=None):
 
     global snt4
     snt4 = snt3.plus(snt3AInv)
-    print("snt3 + snt3AInv = snt4 = " + str(snt4))
+    cprint("snt3 + snt3AInv = snt4 = " + str(snt4))
     assert(str(snt4) == snt4Str)
 
     # test plus a bit more
@@ -1352,14 +1361,14 @@ def SkewFieldMain(argv=None):
     snt5Str = "2 + 3 * b_0^1 + 4 * c_0^1"
     global snt5
     snt5 = SkewFieldSentence(snt5Str)
-    print("snt5 = " + str(snt5))
+    cprint("snt5 = " + str(snt5))
     assert(str(snt5) == snt5Str)
 
     global snt6Str
     snt6Str = "2 + 1 * a_0^1 + 4 * b_0^1 + 4 * c_0^1"
     global snt6
     snt6 = snt1.plus(snt5)
-    print("snt6 = " + str(snt6))
+    cprint("snt6 = " + str(snt6))
     assert(str(snt6) == snt6Str)
 
     # test commutivity of plus
@@ -1371,24 +1380,24 @@ def SkewFieldMain(argv=None):
     snt7Str = "3 + 5 * a_0^7"
     global snt7
     snt7 = SkewFieldSentence(snt7Str)
-    print("snt7 = " + str(snt7))
+    cprint("snt7 = " + str(snt7))
     assert(str(snt7) == snt7Str)
 
     global snt8Str
     snt8Str = "6 * a_0^1 + 10 * a_0^7 * b_0^1 + 10 * a_0^8 + 6 * b_0^1"
     global snt8
     snt8 = snt2.times(snt1).times(snt7)
-    print("(snt2 * snt1) * snt7 = snt8 = " + str(snt8))
+    cprint("(snt2 * snt1) * snt7 = snt8 = " + str(snt8))
     assert(str(snt8) == snt8Str)
 
     global snt9
     snt9 = snt2.times(snt1.times(snt7))
-    print("snt2 * (snt1 * snt7) = snt9 = " + str(snt9))
+    cprint("snt2 * (snt1 * snt7) = snt9 = " + str(snt9))
     assert(snt9 == snt8)
 
     global snt10
     snt10 = snt7.times(snt2.times(snt1))
-    print("snt7 * snt2 * snt1 = snt10 = " + str(snt10))
+    cprint("snt7 * snt2 * snt1 = snt10 = " + str(snt10))
     assert(snt10 == snt8)
 
     # do just-run-it tests
@@ -1417,8 +1426,8 @@ def SkewFieldMain(argv=None):
         snt.times(snt)
         snt.aInv()
 
-    print("")
-    print("MONOMIAL ##########################################################")
+    cprint("")
+    cprint("MONOMIAL #########################################################")
 
     # basic construction-representation test
 
@@ -1427,7 +1436,7 @@ def SkewFieldMain(argv=None):
     mono1Str = "(" + str(snt1) + ") / (" + str(snt7) + ") * T^-2"
     global mono1
     mono1 = SkewFieldMonomial(snt1, snt7, -2)
-    print("mono1 = " + str(mono1))
+    cprint("mono1 = " + str(mono1))
     assert(str(mono1) == mono1Str)
 
     global mono1Again
@@ -1440,7 +1449,7 @@ def SkewFieldMain(argv=None):
     mono1MInvStr = "(3 + 5 * a_2^7) / (1 * a_2^1 + 1 * b_2^1) * T^2"
     global mono1MInv
     mono1MInv = mono1.mInv()
-    print("mono1.mInv() = mono1Inv = " + str(mono1MInv))
+    cprint("mono1.mInv() = mono1Inv = " + str(mono1MInv))
     assert(str(mono1MInv) == mono1MInvStr)
 
     global monoOneStr
@@ -1448,15 +1457,15 @@ def SkewFieldMain(argv=None):
 
     global mono2
     mono2 = mono1.times(mono1MInv)
-    print("mono1 * mono1MInv = mono2 = " + str(mono2))
+    cprint("mono1 * mono1MInv = mono2 = " + str(mono2))
     assert(str(mono2) == monoOneStr)
 
     global mono3
     mono3 = mono1MInv.times(mono1)
-    print("mono1MInv * mono1 = mono3 = " + str(mono3))
+    cprint("mono1MInv * mono1 = mono3 = " + str(mono3))
     assert(str(mono3) == monoOneStr)
 
-    print("mono1 * (mono1^-1) = " + str(mono1.times(mono1.mInv())))
+    cprint("mono1 * (mono1^-1) = " + str(mono1.times(mono1.mInv())))
     assert(SkewFieldMonomial.one() == mono1.times(mono1.mInv()))
 
     # test times some more
@@ -1465,27 +1474,27 @@ def SkewFieldMain(argv=None):
     mono4Str = "(" + str(snt1) + ") / (1) * T^3"
     global mono4
     mono4 = SkewFieldMonomial(snt1, SkewFieldSentence.one(), 3)
-    print("mono4 = " + str(mono4))
+    cprint("mono4 = " + str(mono4))
     assert(str(mono4) == mono4Str)
 
     global mono5Str
     mono5Str = "(" + str(snt1.times(snt1)) + ") / (" + str(snt7) + ") * T^1"
     global mono5
     mono5 = mono1.times(mono4.increasedSubs(2))
-    print("mono5Str = " + str(mono5Str))
-    print("mono1 * mono4.incSubs(2) = mono5 = " + str(mono5))
+    cprint("mono5Str = " + str(mono5Str))
+    cprint("mono1 * mono4.incSubs(2) = mono5 = " + str(mono5))
     assert(str(mono5) == mono5Str)
 
     # test times, particularly with one
 
     global mono6
     mono6 = mono4.times(SkewFieldMonomial.one())
-    print("mono4 * 1 = mono6 = " + str(mono6))
+    cprint("mono4 * 1 = mono6 = " + str(mono6))
     assert(mono6 == mono4)
 
     global mono7
     mono7 = SkewFieldMonomial.one().times(mono4)
-    print("1 * mono4 = mono7 = " + str(mono7))
+    cprint("1 * mono4 = mono7 = " + str(mono7))
     assert(mono7 == mono4)
 
     # test that b - a * (a^-1 * b) == 0
@@ -1508,12 +1517,12 @@ def SkewFieldMain(argv=None):
     monoAtArtB = monoA.times(monoArtB)
     global monoBmAtArtB
     monoBmAtArtB = monoB.minus(monoAtArtB)
-    print("monoA = " + str(monoA))
-    print("monoB = " + str(monoB))
-    print("monoAr = " + str(monoAr))
-    print("monoArtB = " + str(monoArtB))
-    print("monoAtArtB = " + str(monoAtArtB))
-    print("monoBmAtArtB = " + str(monoBmAtArtB))
+    cprint("monoA = " + str(monoA))
+    cprint("monoB = " + str(monoB))
+    cprint("monoAr = " + str(monoAr))
+    cprint("monoArtB = " + str(monoArtB))
+    cprint("monoAtArtB = " + str(monoAtArtB))
+    cprint("monoBmAtArtB = " + str(monoBmAtArtB))
 
     assert(monoBmAtArtB.isZero())
 
@@ -1547,8 +1556,8 @@ def SkewFieldMain(argv=None):
         mono.mInv()
         mono.plusSentencePart(mono)
 
-    print("")
-    print("POLYNOMIAL ########################################################")
+    cprint("")
+    cprint("POLYNOMIAL #######################################################")
 
     # basic construction and representation test
 
@@ -1557,7 +1566,7 @@ def SkewFieldMain(argv=None):
 
     global poly1
     poly1 = SkewFieldPolynomial([mono4, monoA, mono4])
-    print("poly1 = " + str(poly1))
+    cprint("poly1 = " + str(poly1))
     assert(str(poly1) == poly1Str)
 
     global poly2Str
@@ -1565,7 +1574,7 @@ def SkewFieldMain(argv=None):
 
     global poly2
     poly2 = SkewFieldPolynomial(poly2Str)
-    print("poly2 = " + str(poly2))
+    cprint("poly2 = " + str(poly2))
     assert(str(poly2) == poly2Str)
 
     global poly3Str
@@ -1573,7 +1582,7 @@ def SkewFieldMain(argv=None):
 
     global poly3
     poly3 = SkewFieldPolynomial(poly3Str)
-    print("poly3 = " + str(poly3))
+    cprint("poly3 = " + str(poly3))
     assert(str(poly3) == poly3Str)
 
     global poly4Str
@@ -1581,7 +1590,7 @@ def SkewFieldMain(argv=None):
 
     global poly4
     poly4 = SkewFieldPolynomial(poly4Str)
-    print("poly4 = " + str(poly4))
+    cprint("poly4 = " + str(poly4))
 
     # test cmp a bit
     assert(poly1 == poly1)
@@ -1600,13 +1609,13 @@ def SkewFieldMain(argv=None):
     # test quotientAndRemainder
 
     poly5 = SkewFieldPolynomial([mono1.mInv(), mono4, mono4])
-    print("poly5 = " + str(poly5))
+    cprint("poly5 = " + str(poly5))
     poly6 = SkewFieldPolynomial([mono1.mInv(), mono3, mono4, mono4])
-    print("poly6 = " + str(poly6))
+    cprint("poly6 = " + str(poly6))
 
     (poly65Quot, poly65Remain) = poly6.quotientAndRemainder(poly5)
-    print("poly6.quotient(poly5) = poly65Quot = " + str(poly65Quot))
-    print("poly6.remainder(poly5) = poly65Remain = " + str(poly65Remain))
+    cprint("poly6.quotient(poly5) = poly65Quot = " + str(poly65Quot))
+    cprint("poly6.remainder(poly5) = poly65Remain = " + str(poly65Remain))
     assert(poly65Quot == poly6.quotient(poly5))
     assert(poly65Remain == poly6.remainder(poly5))
     assert(poly6 == poly5.times(poly65Quot).plus(poly65Remain))
@@ -1617,11 +1626,11 @@ def SkewFieldMain(argv=None):
     assert(poly6.degree() == poly6.powerDiff())
 
     # test lowestPower
-    print("poly1 = " + str(poly1))
+    cprint("poly1 = " + str(poly1))
     poly1LowPower = poly1.lowestPower()
-    print("poly1.lowestPower() = " + str(poly1LowPower))
+    cprint("poly1.lowestPower() = " + str(poly1LowPower))
     poly1Deg = poly1.degree()
-    print("poly1.degree() = " + str((poly1Deg)))
+    cprint("poly1.degree() = " + str((poly1Deg)))
     assert(poly1Deg - poly1LowPower == poly1.powerDiff())
 
     # RESUME: asMonoList
@@ -1656,16 +1665,96 @@ def SkewFieldMain(argv=None):
         poly.highestMono()
 
 
-    print("")
-    print("RELATIONS #########################################################")
+    cprint("")
+    cprint("RELATIONS ########################################################")
 
-    global relations1
-    relations1 = [
+    # test that relation a_0^1 should be able to get rid of any
+    # letter with alpha=a
+
+    relsA0_1 = [ SkewFieldWord("a_0^1"), ]
+
+    cprint("relsA0_1 = " + str(relsA0_1))
+
+    # quickly test that 1 reduced is 1
+    assert(SkewFieldWord.one().reduced(relsA0_1).isOne())
+
+    wrd50Str = "a_3^3"
+    wrd50 = SkewFieldWord(wrd50Str)
+    cprint("wrd50 = " + str(wrd50))
+    wrd50Red = wrd50.reduced(relsA0_1)
+    cprint("wrd50Red = " + str(wrd50Red))
+    assert(wrd50Red.isOne())
+
+    wrd51Str = "a_-4^-4"
+    wrd51 = SkewFieldWord(wrd51Str)
+    cprint("wrd51 = " + str(wrd51))
+    wrd51Red = wrd51.reduced(relsA0_1)
+    cprint("wrd51Red = " + str(wrd51Red))
+    assert(wrd51Red.isOne())
+
+    wrd52Str = "a_0^1"
+    wrd52 = SkewFieldWord(wrd52Str)
+    cprint("wrd52 = " + str(wrd52))
+    wrd52Red = wrd52.reduced(relsA0_1)
+    cprint("wrd52Red = " + str(wrd52Red))
+    assert(wrd52Red.isOne())
+
+    # test that we raise the relation-word to the right power in the
+    # combination of cases of negative powers vs positive powers and zero
+    # remainder versus nonzero remainder
+
+    relsP = [
+        SkewFieldWord("a_0^3"),
+    ]
+
+    relsN = [
+        SkewFieldWord("a_0^-3"),
+    ]
+
+    wrdP6Str = "a_0^6"
+    wrdN6Str = "a_0^-6"
+    wrdP7Str = "a_0^7"
+    wrdN7Str = "a_0^-7"
+
+    wrdP6 = SkewFieldWord(wrdP6Str)
+    wrdN6 = SkewFieldWord(wrdN6Str)
+    wrdP7 = SkewFieldWord(wrdP7Str)
+    wrdN7 = SkewFieldWord(wrdN7Str)
+
+    wrdP6P = wrdP6.reduced(relsP)
+    wrdP6N = wrdP6.reduced(relsN)
+    wrdN6P = wrdN6.reduced(relsP)
+    wrdN6N = wrdN6.reduced(relsN)
+
+    assert(wrdP6P.isOne())
+    assert(wrdP6N.isOne())
+    assert(wrdN6P.isOne())
+    assert(wrdN6N.isOne())
+
+    wrdA0_1 = SkewFieldWord("a_0^1")
+    wrdA0_2 = SkewFieldWord("a_0^2")
+
+    wrdP7P = wrdP7.reduced(relsP)
+    wrdP7N = wrdP7.reduced(relsN)
+    wrdN7P = wrdN7.reduced(relsP)
+    wrdN7N = wrdN7.reduced(relsN)
+
+    assert(wrdP7P == wrdA0_1)
+    assert(wrdP7N == wrdA0_1)
+    assert(wrdN7P == wrdA0_2)
+    assert(wrdN7N == wrdA0_2)
+
+    cprint("negative powers vs positive powers and zero vs nonzero remainders checked")
+
+    # general word, sentence, mono, poly testing
+
+    global relsBasic
+    relsBasic = [
         SkewFieldWord("a_0^1 * b_0^-1 * b_1^1"),
         SkewFieldWord("b_0^1 * b_1^-1 * b_2^1"),
     ]
 
-    print("relations1 = [ " + ",  ".join(map(str,relations1)) + " ]")
+    cprint("relsBasic = [ " + ",  ".join(map(str,relsBasic)) + " ]")
 
     # test word reduction
 
@@ -1681,16 +1770,17 @@ def SkewFieldMain(argv=None):
     global wrdStrsAfterReduction 
     wrdStrsAfterReduction = [
         "b_0^1 * b_1^1",
-        "b_0^-1 * b_1^1 * b_3^1",
+        "b_0^-2 * b_1^1",
     ]
 
     for wrd, wrdReducedStr in zip(wrdsBeforeReduction, wrdStrsAfterReduction):
-        wrdReduced = wrd.reduced(relations1)
+        wrdReduced = wrd.reduced(relsBasic)
         wrdsAfterReduction.append(wrdReduced)
 
-        print("wrd = " + str(wrd))
-        print("    reduced = " + str(wrdReduced))
-        print("    answer  = " + wrdReducedStr)
+        cprint("wrd = " + str(wrd))
+        cprint("    reduced = " + str(wrdReduced))
+        cprint("    answer  = " + wrdReducedStr)
+        assert(str(wrdReduced) == wrdReducedStr)
 
     # test sentence reduction
 
@@ -1710,12 +1800,12 @@ def SkewFieldMain(argv=None):
     ]
 
     for snt, sntReducedStr in zip(sntsBeforeReduction, sntStrsAfterReduction):
-        sntReduced = snt.reduced(relations1)
+        sntReduced = snt.reduced(relsBasic)
         sntsAfterReduction.append(sntReduced)
 
-        print("snt = " + str(snt))
-        print("    reduced = " + str(sntReduced))
-        print("    answer = " + sntReducedStr)
+        cprint("snt = " + str(snt))
+        cprint("    reduced = " + str(sntReduced))
+        cprint("    answer  = " + sntReducedStr)
 
     # test mono reduction
 
@@ -1735,12 +1825,12 @@ def SkewFieldMain(argv=None):
     ]
 
     for mono, monoReducedStr in zip(monosBeforeReduction, monoStrsAfterReduction):
-        monoReduced = mono.reduced(relations1)
+        monoReduced = mono.reduced(relsBasic)
         monosAfterReduction.append(monoReduced)
 
-        print("mono = " + str(mono))
-        print("    reduced = " + str(monoReduced))
-        print("    answer = " + monoReducedStr)
+        cprint("mono = " + str(mono))
+        cprint("    reduced = " + str(monoReduced))
+        cprint("    answer  = " + monoReducedStr)
 
     # test poly reduction
 
@@ -1758,36 +1848,23 @@ def SkewFieldMain(argv=None):
     ]
 
     for poly, polyReducedStr in zip(polysBeforeReduction, polyStrsAfterReduction):
-        polyReduced = poly.reduced(relations1)
+        polyReduced = poly.reduced(relsBasic)
         polysAfterReduction.append(polyReduced)
 
-        print("poly = " + str(poly))
-        print("    reduced = " + str(polyReduced))
-        print("    answer = " + polyReducedStr)
+        cprint("poly = " + str(poly))
+        cprint("    reduced = " + str(polyReduced))
+        cprint("    answer  = " + polyReducedStr)
 
+    cprint("")
+    cprint("MISC #############################################################")
 
-    relations2 = [
-        SkewFieldWord("a_0^1"),
-        SkewFieldWord("b_0^3"),
-    ]
-
-    wrd50Str = "a_3^3"
-    wrd50 = SkewFieldWord(wrd50Str)
-    print("wrd50 = " + str(wrd50))
-    print("relations2 = " + str(relations2))
-    wrd50Red = wrd50.reduced(relations2)
-    print("wrd50Red = " + str(wrd50Red))
-
-    print("")
-    print("MISC ##############################################################")
-
-    print("")
-    print("END OF SKEWFIELD.PY TEST BATTERY ##################################")
+    cprint("")
+    cprint("END OF SKEWFIELD.PY TEST BATTERY #################################")
 
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(SkewFieldMain())
+    sys.exit(SkewFieldMain(sys.argv))
 
 

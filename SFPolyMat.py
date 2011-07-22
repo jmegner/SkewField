@@ -128,7 +128,8 @@ class SFPolyMat():
         temp = []
         for col in range(self.nCols()):
             poly = multiplier.times(self.mat[j][col])
-            temp.append(poly.reduced(self.rels))
+            poly = poly.reduced(self.rels)
+            temp.append(poly)
         for col in range(self.nCols()):
             poly = self.mat[i][col].plus(temp[col])
             self.mat[i][col] = poly.reduced(self.rels)
@@ -209,14 +210,14 @@ class SFPolyMat():
         q = q.reduced(self.rels)
         q = q.aInv()
         #print "result of dividing col entry " + str(i) + " by " + str(j) + " is " + str(q)
-        self.addMultOfRow(j, i, q.reduced(self.rels))
+        self.addMultOfRow(j, i, q)
 
     def killRowEntry(self, i, j):
         q = rightQuotient(self.mat[i][j], self.mat[i][i])
         q = q.reduced(self.rels)
         q = q.aInv()
         #print "result of dividing row entry " + str(i) + " by " + str(j) + " is " + str(q)
-        self.addMultOfColumn(j, i, q.reduced(self.rels))
+        self.addMultOfColumn(j, i, q)
 
     def killRowCol(self,i):
         self.minToTop(i)
@@ -380,7 +381,7 @@ def main(argv=None):
 
     assert(mat5_1.delta1() == 3)
 
-    return 1
+    #return 1
 
     tMat5_2 = [
         [
@@ -427,9 +428,11 @@ def main(argv=None):
 
     assert(mat5_2.delta1() == 1)
 
+    return 1 # program does not work beyond this point
+
     #This is smaller matrix for 6_1 -- only 2x2, but entries are
     #more complicated. SkewFied does not like that
-    tMat6_1 = [
+    tMatSmall6_1 = [
         [
             SkewFieldPolynomial("(1 * a_0^1 * a_1^-2 + -1 * a_0^1 * a_1^-2 * a_2^2) / (1) * T^1 ++ (1 * a_0^1 + -1 * a_0^1 * a_1^-5 * a_2^2) / (1) * T^0"),
             SkewFieldPolynomial("(1 * a_0^1 * a_1^-2 + 1 * a_0^1 * a_1^-2 * a_2^1) / (1) * T^2 ++ (-1 * a_0^1 * a_1^-5 * a_2^2 + -1 * a_0^1 * a_1^-4 * a_2^2 + -1 * a_0^1 * a_1^-3 * a_2^2 + -1 * a_0^1 * a_1^-2 + -1 * a_0^1 * a_1^-1) / (1) * T^1 ++ (1 + 1 * a_0^1 * a_1^-5 * a_2^2) / (1) * T^0"),
@@ -439,15 +442,14 @@ def main(argv=None):
         ],
     ]
 
-    relations6_1 = [
+    relsSmall6_1 = [
         SkewFieldWord("a_0^2 * a_1^-5 * a_2^2")
     ]
 
-    mat6_1 = SFPolyMat(tMat6_1,relations6_1)
-    print("skipping bastardized 6_1")
-    #mat6_1.diagonalize()
-    #print("mat6_1.delta1 = " + str(mat6_1.delta1()))
-    #assert(mat6_1.delta1() == 1)
+    matSmall6_1 = SFPolyMat(tMatSmall6_1,relsSmall6_1)
+    matSmall6_1.diagonalize()
+    print("matSmall6_1.delta1 = " + str(matSmall6_1.delta1()))
+    assert(matSmall6_1.delta1() == 1)
 
 
     tMat6_2 = [
