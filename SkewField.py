@@ -254,13 +254,13 @@ class SkewFieldWord():
 
 
     def __hash__(self):
-        #return hash(str(self))
         hashVal = 0
 
         for letter, power in self.letterCtr.iteritems():
             hashVal += hash(letter) * power
 
         return hashVal
+
 
 
     def __cmp__(self, other):
@@ -575,7 +575,7 @@ class SkewFieldSentence():
 
 
     def isZero(self):
-        return self == SkewFieldSentence.zero()
+        return len(self.wordCtr) == 0
 
 
     def isOne(self):
@@ -767,11 +767,11 @@ class SkewFieldMonomial():
 
 
     def isZero(self):
-        return self == SkewFieldMonomial.zero()
+        return self.numer.isZero()
 
 
     def isOne(self):
-        return self == SkewFieldMonomial.one()
+        return self.numer.isOne() and self.denom.isOne() and self.tpower == 0
 
 
     def isScalar(self):
@@ -975,7 +975,8 @@ class SkewFieldPolynomial():
 
 
     def isOne(self):
-        return self == SkewFieldPolynomial.one()
+        return self.isZero() \
+           or (len(self.monoDict) == 1 and self.monoDict.values()[0].isOne())
 
 
     def isScalar(self):
@@ -997,10 +998,10 @@ class SkewFieldPolynomial():
 
 
     def increasedSubs(self, increment):
-        result = SkewFieldPolynomial()
-        for power, mono in self.monoDict.items():
-            result.monoDict[power] = mono.increasedSubs(increment)
-        return result
+        monoList = []
+        for mono in self.monoDict.itervalues():
+            monoList.append(mono.increasedSubs(increment))
+        return SkewFieldPolynomial(monoList)
 
 
     def plus(self, other):
@@ -1021,17 +1022,46 @@ class SkewFieldPolynomial():
         return SkewFieldPolynomial(product)
 
 
-    def quotient(self, denominator):
-        return self.quotientAndRemainder(denominator)[0]
+    def leftQuotient(self, denominator):
+        return self.leftQuotientAndRemainder(denominator)[0]
 
 
-    def remainder(self, denominator):
-        return self.quotientAndRemainder(denominator)[1]
+    def leftRemainder(self, denominator):
+        return self.leftQuotientAndRemainder(denominator)[1]
 
 
-    # applies poly long division algo to return quotient and remainder
-    def quotientAndRemainder(self, denominator):
+    # quotient * denominator + remainder = numerator
+    def leftQuotientAndRemainder(self, denominator):
         numerator = self.deepcopy()
+        result = []
+
+        while(numerator.degree() >= denominator.degree()
+              and not numerator.isZero()):
+            leadDenominator = denominator.monoDict.get(
+                denominator.degree(),
+                SkewFieldMonomial.zero())
+            leadNumerator = numerator.monoDict.get(
+                numerator.degree(),
+                SkewFieldMonomial.zero())
+            mono = leadNumerator.times(leadDenominator.mInv())
+            result.append(mono)
+            product = mono.asPoly().times(denominator)
+            numerator = numerator.plus(product.aInv())
+
+        return (SkewFieldPolynomial(result), numerator)
+
+
+    def rightQuotient(self, denominator):
+        return self.rightQuotientAndRemainder(denominator)[0]
+
+
+    def rightRemainder(self, denominator):
+        return self.rightQuotientAndRemainder(denominator)[1]
+
+
+    # denominator * quotient + remainder = numerator
+    def rightQuotientAndRemainder(self, denominator):
+        numerator = self
         result = []
 
         while(numerator.degree() >= denominator.degree()
@@ -1606,19 +1636,58 @@ def SkewFieldMain(argv=None):
     assert(not SkewFieldPolynomial.one().isZero())
     assert(not poly1.isScalar())
 
-    # test quotientAndRemainder
+    # test rightQuotientAndRemainder
 
     poly5 = SkewFieldPolynomial([mono1.mInv(), mono4, mono4])
     cprint("poly5 = " + str(poly5))
     poly6 = SkewFieldPolynomial([mono1.mInv(), mono3, mono4, mono4])
     cprint("poly6 = " + str(poly6))
 
-    (poly65Quot, poly65Remain) = poly6.quotientAndRemainder(poly5)
-    cprint("poly6.quotient(poly5) = poly65Quot = " + str(poly65Quot))
-    cprint("poly6.remainder(poly5) = poly65Remain = " + str(poly65Remain))
-    assert(poly65Quot == poly6.quotient(poly5))
-    assert(poly65Remain == poly6.remainder(poly5))
-    assert(poly6 == poly5.times(poly65Quot).plus(poly65Remain))
+    (poly65QuotR, poly65RemainR) = poly6.rightQuotientAndRemainder(poly5)
+    cprint("poly6.rightQuotient(poly5) = poly65QuotR = " + str(poly65QuotR))
+    cprint("poly6.rightRemainder(poly5) = poly65RemainR = " + str(poly65RemainR))
+    assert(poly65QuotR == poly6.rightQuotient(poly5))
+    assert(poly65RemainR == poly6.rightRemainder(poly5))
+    assert(poly6 == poly5.times(poly65QuotR).plus(poly65RemainR))
+
+    # poly long division with answers that actually vary between left-division
+    # and right-division
+
+    polyDividendStr = (
+        "(1 * c_0^1) / (1) * T^2 ++ " +
+        "(1 * b_0^1) / (1) * T^1 ++ " +
+        "(1 * a_0^1) / (1) * T^0")
+    polyDivisorStr = (
+        "(1 * e_0^1) / (1) * T^1 ++ " +
+        "(1 * d_0^1) / (1) * T^0")
+
+    polyDividend = SkewFieldPolynomial(polyDividendStr)
+    polyDivisor = SkewFieldPolynomial(polyDivisorStr)
+
+    cprint("polyDividend = " + str(polyDividend))
+    cprint("polyDivisor = " + str(polyDivisor))
+
+    (polyLeftQuotient, polyLeftRemainder) \
+        = polyDividend.leftQuotientAndRemainder(polyDivisor)
+
+    cprint("polyLeftQuotient = " + str(polyLeftQuotient))
+    cprint("polyLeftRemainder = " + str(polyLeftRemainder))
+    assert(polyLeftQuotient == polyDividend.leftQuotient(polyDivisor))
+    assert(polyLeftRemainder == polyDividend.leftRemainder(polyDivisor))
+
+    assert(polyLeftQuotient.times(polyDivisor).plus(polyLeftRemainder)
+        == polyDividend)
+
+    (polyRightQuotient, polyRightRemainder) \
+        = polyDividend.rightQuotientAndRemainder(polyDivisor)
+
+    cprint("polyRightQuotient = " + str(polyRightQuotient))
+    cprint("polyRightRemainder = " + str(polyRightRemainder))
+    assert(polyRightQuotient == polyDividend.rightQuotient(polyDivisor))
+    assert(polyRightRemainder == polyDividend.rightRemainder(polyDivisor))
+
+    assert(polyDivisor.times(polyRightQuotient).plus(polyRightRemainder)
+        == polyDividend)
 
     # test powerDiff
     # should be equal if all powers non-negative and has constant term
@@ -1659,7 +1728,7 @@ def SkewFieldMain(argv=None):
         poly.plus(poly)
         poly.minus(poly)
         poly.times(poly)
-        poly.quotient(poly)
+        poly.rightQuotient(poly)
         poly.aInv()
         poly.degree()
         poly.highestMono()

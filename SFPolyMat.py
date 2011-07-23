@@ -10,74 +10,6 @@ import collections
 import SkewField
 from SkewField import *
 
-#use for column operations
-def rightQuot(self, denominator):
-    numerator = self.deepcopy()
-    result = []
-
-    while(numerator.degree() >= denominator.degree()
-          and not numerator.isZero()):
-        leadDenominator = denominator.monoDict.get(
-            denominator.degree(),
-            SkewFieldMonomial.zero())
-        leadNumerator = numerator.monoDict.get(
-            numerator.degree(),
-            SkewFieldMonomial.zero())
-        mono = leadDenominator.mInv().times(leadNumerator)
-        result.append(mono)
-        product = denominator.times(mono.asPoly())
-        numerator = numerator.plus(product.aInv())
-
-    return SkewFieldPolynomial(result)
-
-#use for row operations
-def leftQuot(self, denominator):
-    numerator = self.deepcopy()
-    result = []
-
-    while(numerator.degree() >= denominator.degree()
-          and not numerator.isZero()):
-        leadDenominator = denominator.monoDict.get(
-            denominator.degree(),
-            SkewFieldMonomial.zero())
-        leadNumerator = numerator.monoDict.get(
-            numerator.degree(),
-            SkewFieldMonomial.zero())
-        mono = leadNumerator.times(leadDenominator.mInv())
-        result.append(mono)
-        product = mono.asPoly().times(denominator)
-        numerator = numerator.plus(product.aInv())
-
-    return SkewFieldPolynomial(result)
-
-#use for col operations
-def rightQuotient(self, denominator):
-    if(self.degree() >= denominator.degree()):
-        leadDenominator = denominator.monoDict.get(
-            denominator.degree(),
-            SkewFieldMonomial.zero())
-        leadNumerator = self.monoDict.get(
-            self.degree(),
-            SkewFieldMonomial.zero())
-        mono = leadDenominator.mInv().times(leadNumerator)
-        return mono.asPoly()
-    else:
-        return SkewFieldPolynomial.zero()
-
-#use for row operations
-def leftQuotient(self, denominator):
-    if(self.degree() >= denominator.degree()):
-        leadDenominator = denominator.monoDict.get(
-            denominator.degree(),
-            SkewFieldMonomial.zero())
-        leadNumerator = self.monoDict.get(
-            self.degree(),
-            SkewFieldMonomial.zero())
-        mono = leadNumerator.times(leadDenominator.mInv())
-        return mono.asPoly()
-    else:
-        return SkewFieldPolynomial.zero()
-
 
 class SFPolyMat():
 
@@ -253,9 +185,6 @@ class SFPolyMat():
 # MAIN
 ################################################################################
 
-
-SkewFieldPolynomial.leftQuotient = leftQuotient
-SkewFieldPolynomial.rightQuotient = rightQuotient
 
 def main(argv=None):
 
