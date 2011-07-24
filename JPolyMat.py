@@ -37,8 +37,8 @@ class JPolyMat():
         return JPolyMat(self.mat, self.rels)
 
 
-    def reduce(self):
-        self.mat = [[poly.reduced(self.rels) for poly in row] for row in self.mat]
+    def normalize(self):
+        self.mat = [[poly.normalized(self.rels) for poly in row] for row in self.mat]
 
 
     def getRow(self, rowIdx):
@@ -70,22 +70,22 @@ class JPolyMat():
                 = (self.mat[row][col2], self.mat[row][col1])
 
 
-    # note: left multiplies; return reduced(scaler * row)
+    # note: left multiplies; return normalized(scaler * row)
     def scaledRow(self, rowIdx, scaler):
-        return [scaler.times(poly).reduced(self.rels) for poly
+        return [scaler.times(poly).normalized(self.rels) for poly
             in self.getRow(rowIdx)]
 
 
-    # note: right multiplies; returns reduced(col * scaler)
+    # note: right multiplies; returns normalized(col * scaler)
     def scaledCol(self, colIdx, scaler):
-        return [poly.times(scaler).reduced(self.rels) for poly
+        return [poly.times(scaler).normalized(self.rels) for poly
             in self.getCol(colIdx)]
 
 
     def addToRow(self, rowIdx, otherRow):
         self.setRow(
             rowIdx,
-            [poly1.plus(poly2).reduced(self.rels) for (poly1, poly2)
+            [poly1.plus(poly2).normalized(self.rels) for (poly1, poly2)
                 in zip(self.getRow(rowIdx), otherRow)]
             )
 
@@ -93,7 +93,7 @@ class JPolyMat():
     def addToCol(self, colIdx, otherCol):
         self.setCol(
             colIdx,
-            [poly1.plus(poly2).reduced(self.rels) for (poly1, poly2)
+            [poly1.plus(poly2).normalized(self.rels) for (poly1, poly2)
                 in zip(self.getCol(colIdx), otherCol)]
             )
 
@@ -105,47 +105,71 @@ class JPolyMat():
         self.addToCol(destColIdx, self.scaledCol(srcColIdx, scaler))
 
 
+    def centerTPowersOfRows(self):
+        for rowIdx in self.rowRange():
+            minTPower = sys.maxint
+
+            for poly in self.getRow(rowIdx):
+                if not poly.isZero():
+                    minTPower = min(minTPower, poly.lowestPower())
+
+            if minTPower != sys.maxint and minTPower != 0:
+            #if minTPower < 0:
+                print("    rowIdx={} minTPower={}".format(rowIdx, minTPower))
+                print("    " + str(self.getRow(rowIdx)))
+                # multiplying this will get row's minimum tpower to be exactly zero
+                tpowerScaler = SkewFieldMonomial(
+                    SkewFieldSentence.one(),
+                    SkewFieldSentence.one(),
+                    -minTPower
+                    ).asPoly()
+
+                self.scaleRow(rowIdx, tpowerScaler)
+                print("    " + str(self.getRow(rowIdx)))
+                print("")
+
+
 ################################################################################
 ## THE DIVIDE; Jacob approved stuff above
 ################################################################################
 
-    # note: left multiplies; row = reduced(multiplier * row)
+    # note: left multiplies; row = normalized(multiplier * row)
     def scaleRow(self, row, multiplier):
-        self.mat[row] = [multiplier.times(poly).reduced(self.rels)
+        self.mat[row] = [multiplier.times(poly).normalized(self.rels)
             for poly in self.mat[row]]
 
 
-    # note: right multiplies; col = reduced(col * multiplier)
+    # note: right multiplies; col = normalized(col * multiplier)
     def scaleCol(self, col, multiplier):
         for row in self.rowRange():
-            poly = self.mat[row][col].times(multiplier).reduced(self.rels)
+            poly = self.mat[row][col].times(multiplier).normalized(self.rels)
             self.mat[row][col] = poly
 
 
-    #adds multiplier*j to i. Should work over skew field
-    def addMultOfRow(self, destRow, srcRow, multiplier):
-        temp = []
-        for col in range(self.nCols()):
-            poly = multiplier.times(self.mat[srcRow][col])
-            poly = poly.reduced(self.rels)
-            temp.append(poly)
-        for col in range(self.nCols()):
-            poly = self.mat[destRow][col].plus(temp[col])
-            self.mat[destRow][col] = poly.reduced(self.rels)
-        #print self.mat
+    ##adds multiplier*j to i. Should work over skew field
+    #def addMultOfRow(self, destRow, srcRow, multiplier):
+    #    temp = []
+    #    for col in range(self.nCols()):
+    #        poly = multiplier.times(self.mat[srcRow][col])
+    #        poly = poly.normalized(self.rels)
+    #        temp.append(poly)
+    #    for col in range(self.nCols()):
+    #        poly = self.mat[destRow][col].plus(temp[col])
+    #        self.mat[destRow][col] = poly.normalized(self.rels)
+    #    #print self.mat
 
 
-    #adding mult*j to i. Should work over skew field
-    def addMultOfCol(self, i, j, multiplier):
-        #print "adding " + str(multiplier) +"*" + str(j) + " to col " + str(i)
-        temp = []
-        for row in range(self.nRows()):
-            poly = self.mat[row][j].times(multiplier)
-            temp.append(poly.reduced(self.rels))
-        for row in range(self.nCols()):
-            poly = self.mat[row][i].plus(temp[row])
-            self.mat[row][i] = poly.reduced(self.rels)
-        #print self.mat
+    ##adding mult*j to i. Should work over skew field
+    #def addMultOfCol(self, i, j, multiplier):
+    #    #print "adding " + str(multiplier) +"*" + str(j) + " to col " + str(i)
+    #    temp = []
+    #    for row in range(self.nRows()):
+    #        poly = self.mat[row][j].times(multiplier)
+    #        temp.append(poly.normalized(self.rels))
+    #    for row in range(self.nCols()):
+    #        poly = self.mat[row][i].plus(temp[row])
+    #        self.mat[row][i] = poly.normalized(self.rels)
+    #    #print self.mat
 
 
     def nRows(self):
@@ -178,7 +202,7 @@ class JPolyMat():
         tPower = SkewFieldPolynomial([SkewFieldMonomial(
             SkewFieldSentence.one(),SkewFieldSentence.one(),-minDegree)])
         #print tPower
-        self.scaleRow(row, tPower)
+        #self.scaleRow(row, tPower)
 
 
     def killNegatives(self):
@@ -214,7 +238,7 @@ class JPolyMat():
 
     def killColEntry(self, i, j):
         q = self.mat[j][i].leftQuotient(self.mat[i][i])
-        q = q.reduced(self.rels)
+        q = q.normalized(self.rels)
         q = q.aInv()
         #print "result of dividing col entry " + str(i) + " by " + str(j) + " is " + str(q)
         self.addMultOfRow(j, i, q)
@@ -222,7 +246,7 @@ class JPolyMat():
 
     def killRowEntry(self, i, j):
         q = self.mat[i][j].rightQuotient(self.mat[i][i])
-        q = q.reduced(self.rels)
+        q = q.normalized(self.rels)
         q = q.aInv()
         #print "result of dividing row entry " + str(i) + " by " + str(j) + " is " + str(q)
         self.addMultOfCol(j, i, q)
@@ -243,10 +267,9 @@ class JPolyMat():
 
 
     def diagonalize(self):
-        self.reduce()
-        #print(self.mat)
-        self.killNegatives()
-        #print(self.mat)
+        self.normalize()
+        #self.killNegatives()
+        self.centerTPowersOfRows()
         for i in range(self.nRows()):
             #print "in at " + str(i)
             self.killRowCol(i)
@@ -261,7 +284,7 @@ class JPolyMat():
 
 
 ################################################################################
-# MAIN
+# END OF CLASSES
 ################################################################################
 
 
@@ -386,13 +409,92 @@ def testBattery():
          [polyCplusD, polyD]])
 
     ############################################################################
-    # TODO test addMultOfRow, addMultOfCol
+    # test addMultOfRow, addMultOfCol
+
+    poly2 = SkewFieldSentence("2").asPoly()
+    poly2A = polyA.times(poly2)
+    poly2B = polyB.times(poly2)
+    poly2C = polyC.times(poly2)
+    poly2D = polyD.times(poly2)
+
+    poly2AplusC = poly2A.plus(polyC)
+    poly2BplusD = poly2B.plus(polyD)
+
+    poly2AplusB = poly2A.plus(polyB)
+    poly2CplusD = poly2C.plus(polyD)
+
+    # reset
+    jMat1 = jMat1Orig.copy()
+
+    # add 2 * [A, B] to [C, D]
+    jMat1.addMultOfRow(1, 0, poly2)
+    assert(jMat1.mat ==
+        [[polyA,       polyB],
+         [poly2AplusC, poly2BplusD]])
+
+    # reset
+    jMat1 = jMat1Orig.copy()
+
+    # add 2 * [A, C] to [B, D]
+    jMat1.addMultOfCol(1, 0, poly2)
+    assert(jMat1.mat ==
+        [[polyA, poly2AplusB],
+         [polyC, poly2CplusD]])
+
+    ############################################################################
+    # test centerTPowersOfRows
+
+    # for before
+    polyAT2 = polyAT.times(polyT)
+    polyBT = polyB.times(polyT)
+    # polyC is fine
+    polyDTN3 = SkewFieldPolynomial("(1 * d_0^1) / (1) * T^-3")
+
+    pMat2 = [
+        [ polyAT2, polyBT, ],
+        [ polyCT, polyDTN3, ],
+    ]
+
+    rels2 = [
+        SkewFieldWord("a_-999^1 * a_999^1"),
+        SkewFieldWord("b_-999^1 * b_999^1"),
+        SkewFieldWord("c_-999^1 * c_999^1"),
+        SkewFieldWord("d_-999^1 * d_999^1"),
+    ]
+
+    jMat2Orig = JPolyMat(pMat2, rels2)
+    jMat2 = jMat2Orig.copy()
+
+    # for after
+    polyAT_SN1 = SkewFieldPolynomial("(1 * a_-1^1) / (1) * T^1")
+    polyB_SN1 = SkewFieldPolynomial("(1 * b_-1^1) / (1) * T^0")
+    polyCT4_S3 = SkewFieldPolynomial("(1 * c_3^1) / (1) * T^4")
+    polyD_S3 = SkewFieldPolynomial("(1 * d_3^1) / (1) * T^0")
+
+    jMat2.centerTPowersOfRows();
+
+    # assertion for if we allow tpowers to come down
+    assert(jMat2.mat ==
+        [[polyAT_SN1, polyB_SN1],
+         [polyCT4_S3, polyD_S3]])
+
+    ## assertion for if we only let tpowers go up
+    #assert(jMat2.mat ==
+    #    [[polyAT2, polyBT],
+    #     [polyCT4_S3, polyD_S3]])
+
+    ############################################################################
+    # TODO
+    print("")
+    print("")
+    print("")
+    print("")
 
 
 
 def main(argv=None):
 
-    testBattery()
+    #testBattery()
 
     tMat3_1 = [
         [
@@ -421,11 +523,12 @@ def main(argv=None):
 
     #for row in range(len(tMat3_1)):
         #for col in range(len(tMat3_1)):
-            #print(tMat3_1[row][col].reduced(rels3_1))
+            #print(tMat3_1[row][col].normalized(rels3_1))
 
     mat3_1 = JPolyMat(tMat3_1, rels3_1)
+    print("processing mat3_1...")
     mat3_1.diagonalize()
-    print("mat3_1.delta1() = " + str(mat3_1.delta1()))
+    print("    mat3_1.delta1() = " + str(mat3_1.delta1()))
 
     assert(mat3_1.delta1() == 1)
 
@@ -463,8 +566,9 @@ def main(argv=None):
     ]
 
     mat4_1 = JPolyMat(tMat4_1, rels4_1)
+    print("processing mat4_1...")
     mat4_1.diagonalize()
-    print("mat4_1.delta1() = " + str(mat4_1.delta1()))
+    print("    mat4_1.delta1() = " + str(mat4_1.delta1()))
 
     assert(mat4_1.delta1() == 1)
 
@@ -511,8 +615,9 @@ def main(argv=None):
     ]
 
     mat5_1 = JPolyMat(tMat5_1, rels5_1)
+    print("processing mat5_1...")
     mat5_1.diagonalize()
-    print("mat5_1.delta1() = " + str(mat5_1.delta1()))
+    print("    mat5_1.delta1() = " + str(mat5_1.delta1()))
 
     assert(mat5_1.delta1() == 3)
 
@@ -558,8 +663,9 @@ def main(argv=None):
     ]
 
     mat5_2 = JPolyMat(tMat5_2, rel5_2)
+    print("processing mat5_2...")
     mat5_2.diagonalize()
-    print("mat5_2.delta1() = " + str(mat5_2.delta1()))
+    print("    mat5_2.delta1() = " + str(mat5_2.delta1()))
 
     assert(mat5_2.delta1() == 1)
 
@@ -582,8 +688,9 @@ def main(argv=None):
     ]
 
     matSmall6_1 = JPolyMat(tMatSmall6_1,relsSmall6_1)
+    print("processing matSmall6_1...")
     matSmall6_1.diagonalize()
-    print("matSmall6_1.delta1 = " + str(matSmall6_1.delta1()))
+    print("    matSmall6_1.delta1 = " + str(matSmall6_1.delta1()))
     assert(matSmall6_1.delta1() == 1)
 
 
@@ -640,6 +747,7 @@ def main(argv=None):
                  SkewFieldWord("e_0^1 * e_1^-3 * e_2^3 * e_3^-3 * e_4^1")]
 
     mat6_2 = JPolyMat(tMat6_2, rels6_2)
+    print("processing mat6_2...")
     mat6_2.diagonalize()
     print(mat6_2.delta1())
 

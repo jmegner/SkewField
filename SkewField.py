@@ -37,7 +37,7 @@ a class does not necessarily have every function in the list;
     dividedBy       result of division operation
     aInv            additive inverse
     mInv            mulitiplicative inverse
-    reduced         reduced form according to given relations
+    normalized      normalized form according to given relations
 
 """
 
@@ -408,7 +408,7 @@ class SkewFieldWord():
         return None
 
 
-    def reducedAtLetter(self, letter, relations):
+    def normalizedAtLetter(self, letter, relations):
         alpha = letter.alpha
         power = self.letterCtr[letter]
         sub = letter.sub
@@ -441,7 +441,7 @@ class SkewFieldWord():
         return self.times(newRelation)
 
 
-    def reduced(self, relations):
+    def normalized(self, relations):
         result = self
 
         while True:
@@ -449,7 +449,7 @@ class SkewFieldWord():
             if abnormalLetter is None:
                 break
 
-            result = result.reducedAtLetter(abnormalLetter, relations)
+            result = result.normalizedAtLetter(abnormalLetter, relations)
 
         return result
 
@@ -630,14 +630,14 @@ class SkewFieldSentence():
             inverse.wordCtr[word] = -coef
         return inverse
 
-    def reduced(self, relations):
-        reducedWordCtr = dict()
+    def normalized(self, relations):
+        normalizedWordCtr = dict()
 
         for word, coef in self.wordCtr.iteritems():
-            updateCounts(reducedWordCtr,
-                { word.reduced(relations) : coef })
+            updateCounts(normalizedWordCtr,
+                { word.normalized(relations) : coef })
 
-        return SkewFieldSentence(reducedWordCtr)
+        return SkewFieldSentence(normalizedWordCtr)
 
 
 
@@ -855,10 +855,10 @@ class SkewFieldMonomial():
             self.tpower)
 
 
-    def reduced(self, relations):
+    def normalized(self, relations):
         return SkewFieldMonomial(
-            self.numer.reduced(relations),
-            self.denom.reduced(relations),
+            self.numer.normalized(relations),
+            self.denom.normalized(relations),
             self.tpower)
 
 
@@ -1119,10 +1119,10 @@ class SkewFieldPolynomial():
         return self.asPowerList()[-1]
 
 
-    def reduced(self, relations):
+    def normalized(self, relations):
         newMonos = []
         for mono in self.monoDict.itervalues():
-            newMonos.append(mono.reduced(relations))
+            newMonos.append(mono.normalized(relations))
         return SkewFieldPolynomial(newMonos)
 
 
@@ -1744,29 +1744,29 @@ def SkewFieldMain(argv=None):
 
     cprint("relsA0_1 = " + str(relsA0_1))
 
-    # quickly test that 1 reduced is 1
-    assert(SkewFieldWord.one().reduced(relsA0_1).isOne())
+    # quickly test that 1 normalized is 1
+    assert(SkewFieldWord.one().normalized(relsA0_1).isOne())
 
     wrd50Str = "a_3^3"
     wrd50 = SkewFieldWord(wrd50Str)
     cprint("wrd50 = " + str(wrd50))
-    wrd50Red = wrd50.reduced(relsA0_1)
-    cprint("wrd50Red = " + str(wrd50Red))
-    assert(wrd50Red.isOne())
+    wrd50Norm = wrd50.normalized(relsA0_1)
+    cprint("wrd50Norm = " + str(wrd50Norm))
+    assert(wrd50Norm.isOne())
 
     wrd51Str = "a_-4^-4"
     wrd51 = SkewFieldWord(wrd51Str)
     cprint("wrd51 = " + str(wrd51))
-    wrd51Red = wrd51.reduced(relsA0_1)
-    cprint("wrd51Red = " + str(wrd51Red))
-    assert(wrd51Red.isOne())
+    wrd51Norm = wrd51.normalized(relsA0_1)
+    cprint("wrd51Norm = " + str(wrd51Norm))
+    assert(wrd51Norm.isOne())
 
     wrd52Str = "a_0^1"
     wrd52 = SkewFieldWord(wrd52Str)
     cprint("wrd52 = " + str(wrd52))
-    wrd52Red = wrd52.reduced(relsA0_1)
-    cprint("wrd52Red = " + str(wrd52Red))
-    assert(wrd52Red.isOne())
+    wrd52Norm = wrd52.normalized(relsA0_1)
+    cprint("wrd52Norm = " + str(wrd52Norm))
+    assert(wrd52Norm.isOne())
 
     # test that we raise the relation-word to the right power in the
     # combination of cases of negative powers vs positive powers and zero
@@ -1790,10 +1790,10 @@ def SkewFieldMain(argv=None):
     wrdP7 = SkewFieldWord(wrdP7Str)
     wrdN7 = SkewFieldWord(wrdN7Str)
 
-    wrdP6P = wrdP6.reduced(relsP)
-    wrdP6N = wrdP6.reduced(relsN)
-    wrdN6P = wrdN6.reduced(relsP)
-    wrdN6N = wrdN6.reduced(relsN)
+    wrdP6P = wrdP6.normalized(relsP)
+    wrdP6N = wrdP6.normalized(relsN)
+    wrdN6P = wrdN6.normalized(relsP)
+    wrdN6N = wrdN6.normalized(relsN)
 
     assert(wrdP6P.isOne())
     assert(wrdP6N.isOne())
@@ -1803,10 +1803,10 @@ def SkewFieldMain(argv=None):
     wrdA0_1 = SkewFieldWord("a_0^1")
     wrdA0_2 = SkewFieldWord("a_0^2")
 
-    wrdP7P = wrdP7.reduced(relsP)
-    wrdP7N = wrdP7.reduced(relsN)
-    wrdN7P = wrdN7.reduced(relsP)
-    wrdN7N = wrdN7.reduced(relsN)
+    wrdP7P = wrdP7.normalized(relsP)
+    wrdP7N = wrdP7.normalized(relsN)
+    wrdN7P = wrdN7.normalized(relsP)
+    wrdN7N = wrdN7.normalized(relsN)
 
     assert(wrdP7P == wrdA0_1)
     assert(wrdP7N == wrdA0_1)
@@ -1827,102 +1827,102 @@ def SkewFieldMain(argv=None):
 
     # test word reduction
 
-    global wrdsBeforeReduction
-    wrdsBeforeReduction = [
+    global wrdsBeforeNormalization
+    wrdsBeforeNormalization = [
         wrd1,
         wrd2,
     ]
 
-    global wrdsAfterReduction
-    wrdsAfterReduction = []
+    global wrdsAfterNormalization
+    wrdsAfterNormalization = []
 
-    global wrdStrsAfterReduction 
-    wrdStrsAfterReduction = [
+    global wrdStrsAfterNormalization 
+    wrdStrsAfterNormalization = [
         "b_0^1 * b_1^1",
         "b_0^-2 * b_1^1",
     ]
 
-    for wrd, wrdReducedStr in zip(wrdsBeforeReduction, wrdStrsAfterReduction):
-        wrdReduced = wrd.reduced(relsBasic)
-        wrdsAfterReduction.append(wrdReduced)
+    for wrd, wrdNormalizedStr in zip(wrdsBeforeNormalization, wrdStrsAfterNormalization):
+        wrdNormalized = wrd.normalized(relsBasic)
+        wrdsAfterNormalization.append(wrdNormalized)
 
         cprint("wrd = " + str(wrd))
-        cprint("    reduced = " + str(wrdReduced))
-        cprint("    answer  = " + wrdReducedStr)
-        assert(str(wrdReduced) == wrdReducedStr)
+        cprint("    normalized = " + str(wrdNormalized))
+        cprint("    answer  = " + wrdNormalizedStr)
+        assert(str(wrdNormalized) == wrdNormalizedStr)
 
     # test sentence reduction
 
-    global sntsBeforeReduction
-    sntsBeforeReduction = [
+    global sntsBeforeNormalization
+    sntsBeforeNormalization = [
         snt1,
         snt2,
     ]
 
-    global sntsAfterReduction
-    sntsAfterReduction = []
+    global sntsAfterNormalization
+    sntsAfterNormalization = []
 
-    global sntStrsAfterReduction 
-    sntStrsAfterReduction = [
+    global sntStrsAfterNormalization 
+    sntStrsAfterNormalization = [
         "1 * b_0^1 + 1 * b_0^1 * b_1^-1",
         "2",
     ]
 
-    for snt, sntReducedStr in zip(sntsBeforeReduction, sntStrsAfterReduction):
-        sntReduced = snt.reduced(relsBasic)
-        sntsAfterReduction.append(sntReduced)
+    for snt, sntNormalizedStr in zip(sntsBeforeNormalization, sntStrsAfterNormalization):
+        sntNormalized = snt.normalized(relsBasic)
+        sntsAfterNormalization.append(sntNormalized)
 
         cprint("snt = " + str(snt))
-        cprint("    reduced = " + str(sntReduced))
-        cprint("    answer  = " + sntReducedStr)
+        cprint("    normalized = " + str(sntNormalized))
+        cprint("    answer  = " + sntNormalizedStr)
 
     # test mono reduction
 
-    global monosBeforeReduction
-    monosBeforeReduction = [
+    global monosBeforeNormalization
+    monosBeforeNormalization = [
         mono1,
         mono4,
     ]
 
-    global monosAfterReduction
-    monosAfterReduction = []
+    global monosAfterNormalization
+    monosAfterNormalization = []
 
-    global monoStrsAfterReduction 
-    monoStrsAfterReduction = [
+    global monoStrsAfterNormalization 
+    monoStrsAfterNormalization = [
         "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1 + 1 * b_0^7 * b_1^-7) * T^-2",
         "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1) * T^3",
     ]
 
-    for mono, monoReducedStr in zip(monosBeforeReduction, monoStrsAfterReduction):
-        monoReduced = mono.reduced(relsBasic)
-        monosAfterReduction.append(monoReduced)
+    for mono, monoNormalizedStr in zip(monosBeforeNormalization, monoStrsAfterNormalization):
+        monoNormalized = mono.normalized(relsBasic)
+        monosAfterNormalization.append(monoNormalized)
 
         cprint("mono = " + str(mono))
-        cprint("    reduced = " + str(monoReduced))
-        cprint("    answer  = " + monoReducedStr)
+        cprint("    normalized = " + str(monoNormalized))
+        cprint("    answer  = " + monoNormalizedStr)
 
-    # test poly reduction
+    # test poly normalization
 
-    global polysBeforeReduction
-    polysBeforeReduction = [
+    global polysBeforeNormalization
+    polysBeforeNormalization = [
         poly1,
     ]
 
-    global polysAfterReduction
-    polysAfterReduction = []
+    global polysAfterNormalization
+    polysAfterNormalization = []
 
-    global polyStrsAfterReduction 
-    polyStrsAfterReduction = [
+    global polyStrsAfterNormalization 
+    polyStrsAfterNormalization = [
         "(1 * b_0^1 + 1 * b_0^1 * b_1^-1) / (1) * T^3 ++ (1 * b_0^1 * b_1^-1) / (1) * T^0",
     ]
 
-    for poly, polyReducedStr in zip(polysBeforeReduction, polyStrsAfterReduction):
-        polyReduced = poly.reduced(relsBasic)
-        polysAfterReduction.append(polyReduced)
+    for poly, polyNormalizedStr in zip(polysBeforeNormalization, polyStrsAfterNormalization):
+        polyNormalized = poly.normalized(relsBasic)
+        polysAfterNormalization.append(polyNormalized)
 
         cprint("poly = " + str(poly))
-        cprint("    reduced = " + str(polyReduced))
-        cprint("    answer  = " + polyReducedStr)
+        cprint("    normalized = " + str(polyNormalized))
+        cprint("    answer  = " + polyNormalizedStr)
 
     cprint("")
     cprint("MISC #############################################################")
