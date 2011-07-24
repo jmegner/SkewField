@@ -37,8 +37,32 @@ class JPolyMat():
         return JPolyMat(self.mat, self.rels)
 
 
+    def degRep(self):
+        degMat = [[poly.degree() for poly in row] for row in self.mat]
+        rep = str(degMat)
+        rep = rep.replace("-1", "Z")
+        rep = rep.replace("\"", "").replace("\'", "").replace("],", "],\n")
+        return rep
+
+
     def normalize(self):
         self.mat = [[poly.normalized(self.rels) for poly in row] for row in self.mat]
+
+
+    def nRows(self):
+       return len(self.mat)
+
+
+    def nCols(self):
+       return self.nRows() # remember it is a square matrix
+
+
+    def rowRange(self):
+       return range(self.nRows())
+
+
+    def colRange(self):
+       return range(self.nCols())
 
 
     def getRow(self, rowIdx):
@@ -56,6 +80,16 @@ class JPolyMat():
     def setCol(self, colIdx, otherCol):
         for rowIdx in self.rowRange():
             self.mat[rowIdx][colIdx] = otherCol[rowIdx]
+
+
+    def numNonzeroPolys(self, polyList):
+        nonzeroCount = 0
+
+        for poly in polyList:
+            if not poly.isZero():
+                nonzeroCount += 1
+
+        return nonzeroCount
 
 
     def swapRows(self, row1, row2):
@@ -105,37 +139,9 @@ class JPolyMat():
         self.addToCol(destColIdx, self.scaledCol(srcColIdx, scaler))
 
 
-    def centerTPowersOfRows(self):
-        for rowIdx in self.rowRange():
-            minTPower = sys.maxint
-
-            for poly in self.getRow(rowIdx):
-                if not poly.isZero():
-                    minTPower = min(minTPower, poly.lowestPower())
-
-            if minTPower != sys.maxint and minTPower != 0:
-            #if minTPower < 0:
-                print("    rowIdx={} minTPower={}".format(rowIdx, minTPower))
-                print("    " + str(self.getRow(rowIdx)))
-                # multiplying this will get row's minimum tpower to be exactly zero
-                tpowerScaler = SkewFieldMonomial(
-                    SkewFieldSentence.one(),
-                    SkewFieldSentence.one(),
-                    -minTPower
-                    ).asPoly()
-
-                self.scaleRow(rowIdx, tpowerScaler)
-                print("    " + str(self.getRow(rowIdx)))
-                print("")
-
-
-################################################################################
-## THE DIVIDE; Jacob approved stuff above
-################################################################################
-
     # note: left multiplies; row = normalized(multiplier * row)
     def scaleRow(self, row, multiplier):
-        self.mat[row] = [multiplier.times(poly).normalized(self.rels)
+        self.mat[row] = [multiplier.times(poly) #.normalized(self.rels)
             for poly in self.mat[row]]
 
 
@@ -146,141 +152,141 @@ class JPolyMat():
             self.mat[row][col] = poly
 
 
-    ##adds multiplier*j to i. Should work over skew field
-    #def addMultOfRow(self, destRow, srcRow, multiplier):
-    #    temp = []
-    #    for col in range(self.nCols()):
-    #        poly = multiplier.times(self.mat[srcRow][col])
-    #        poly = poly.normalized(self.rels)
-    #        temp.append(poly)
-    #    for col in range(self.nCols()):
-    #        poly = self.mat[destRow][col].plus(temp[col])
-    #        self.mat[destRow][col] = poly.normalized(self.rels)
-    #    #print self.mat
+    def centerTPowersOfRows(self):
+        for rowIdx in self.rowRange():
+            minTPower = sys.maxint
+
+            for poly in self.getRow(rowIdx):
+                if not poly.isZero():
+                    minTPower = min(minTPower, poly.lowestPower())
+
+            #if minTPower != sys.maxint and minTPower != 0:
+            if minTPower < 0:
+                # multiplying this will get row's minimum tpower to be exactly zero
+                tpowerScaler = SkewFieldMonomial(
+                    SkewFieldSentence.one(),
+                    SkewFieldSentence.one(),
+                    -minTPower
+                    ).asPoly()
+
+                self.scaleRow(rowIdx, tpowerScaler)
 
 
-    ##adding mult*j to i. Should work over skew field
-    #def addMultOfCol(self, i, j, multiplier):
-    #    #print "adding " + str(multiplier) +"*" + str(j) + " to col " + str(i)
-    #    temp = []
-    #    for row in range(self.nRows()):
-    #        poly = self.mat[row][j].times(multiplier)
-    #        temp.append(poly.normalized(self.rels))
-    #    for row in range(self.nCols()):
-    #        poly = self.mat[row][i].plus(temp[row])
-    #        self.mat[row][i] = poly.normalized(self.rels)
-    #    #print self.mat
+    def posOfMinInSubmat(self, startingRowAndCol):
+        minDegree = sys.maxint
+        posOfMin = (None, None)
+
+        for rowIdx in range(startingRowAndCol, self.nRows()):
+            for colIdx in range(startingRowAndCol, self.nCols()):
+                poly = self.mat[rowIdx][colIdx]
+
+                if not poly.isZero():
+                    if poly.degree() < minDegree:
+                        minDegree = poly.degree()
+                        posOfMin = (rowIdx, colIdx)
+
+        return posOfMin
 
 
-    def nRows(self):
-       return len(self.mat)
+    def minToPivotPosition(self, pivotRowAndCol):
+        minRowCol = self.posOfMinInSubmat(pivotRowAndCol)
+        if not(minRowCol[0] is None):
+            self.swapRows(pivotRowAndCol, minRowCol[0])
+            self.swapCols(pivotRowAndCol ,minRowCol[1])
 
 
-    def nCols(self):
-       return self.nRows() # remember it is a square matrix
+    def downgradeRowEntry(self, pivotRowAndCol, targetColIdx):
+        pivotPoly = self.mat[pivotRowAndCol][pivotRowAndCol]
+        targetPoly = self.mat[pivotRowAndCol][targetColIdx]
+
+        rightQuot = targetPoly.rightQuotient(pivotPoly)
+        reducingScaler = rightQuot.normalized(self.rels).aInv()
+
+        self.addMultOfCol(targetColIdx, pivotRowAndCol, reducingScaler)
 
 
-    def rowRange(self):
-       return range(self.nRows())
+    def downgradeColEntry(self, pivotRowAndCol, targetRowIdx):
+        pivotPoly = self.mat[pivotRowAndCol][pivotRowAndCol]
+        targetPoly = self.mat[targetRowIdx][pivotRowAndCol]
+
+        leftQuot = targetPoly.leftQuotient(pivotPoly)
+        reducingScaler = leftQuot.normalized(self.rels).aInv()
+
+        self.addMultOfRow(targetRowIdx, pivotRowAndCol, reducingScaler)
 
 
-    def colRange(self):
-       return range(self.nCols())
+    def killRowAndCol(self, pivotRowAndCol, doPrint = False):
+        if doPrint:
+            print("")
+            print("killRowAndCol({})".format(pivotRowAndCol))
+            print(self.degRep())
 
+        # kill non-pivot elements in col
+        while self.numNonzeroPolys(self.getCol(pivotRowAndCol)) > 1:
+            self.minToPivotPosition(pivotRowAndCol)
 
-#-------methods to diagonalize-------#
+            if doPrint:
+                print("after minToPivotPosition({})".format(pivotRowAndCol))
+                print(self.degRep())
 
-    def clearRow(self, row):
-        minDegree = 0
-        for col in range(self.nCols()):
-            #print ("in clearRow " + str(row) + ", " + str(col) + " ok")
-            if not self.mat[row][col].isZero():
-                #print "in row " + str(row) + ", " + str(col) + " is not zero"
-                if self.mat[row][col].lowestPower() < minDegree:
-                    minDegree = self.mat[row][col].lowestPower()
-        #print minDegree
-        tPower = SkewFieldPolynomial([SkewFieldMonomial(
-            SkewFieldSentence.one(),SkewFieldSentence.one(),-minDegree)])
-        #print tPower
-        #self.scaleRow(row, tPower)
+            for targetRowIdx in range(pivotRowAndCol + 1, self.nRows()):
+                if not self.mat[targetRowIdx][pivotRowAndCol].isZero():
+                    self.downgradeColEntry(pivotRowAndCol, targetRowIdx)
 
+                    if doPrint:
+                        print("after downgradeColEntry(pivotRC={}, targetR={})"
+                            .format(pivotRowAndCol, targetRowIdx))
+                        print(self.degRep())
 
-    def killNegatives(self):
-        for row in range(self.nRows()):
-            #print (str(row) + " ok")
-            self.clearRow(row)
-        #print "done killing negatives"
+                    break
 
+        # kill non-pivot elements in row
+        while self.numNonzeroPolys(self.getRow(pivotRowAndCol)) > 1:
+            self.minToPivotPosition(pivotRowAndCol)
+            if doPrint:
+                print("after minToPivotPosition({})".format(pivotRowAndCol))
+                print(self.degRep())
 
-   #finds position of minimum degree elt of matrix starting at (i,i)
-    def minPosition(self, i):
-        mindeg = -2
-        minPosition = (i, i)
-        for row in range(i,self.nRows()):
-            for col in range(i, self.nCols()):
-                #print self.degree(self.mat[row][col])
-                if not self.mat[row][col].isZero():
-                    if mindeg == -2 or self.mat[row][col].degree() < mindeg:
-                        mindeg = self.mat[row][col].degree()
-                        minPosition = (row, col)
-                        #print minPosition
-        return minPosition
+            for targetColIdx in range(pivotRowAndCol + 1, self.nCols()):
+                if not self.mat[pivotRowAndCol][targetColIdx].isZero():
+                    self.downgradeRowEntry(pivotRowAndCol, targetColIdx)
 
+                    if doPrint:
+                        print("after downgradeRowEntry(pivotRC={}, targetC={})"
+                            .format(pivotRowAndCol, targetColIdx))
+                        print(self.degRep())
 
-    def minToTop(self, row):
-        minRowCol = self.minPosition(row)
-        #print str(min)
-        self.swapRows(row, minRowCol[0])
-        #print "swapped rows"
-        self.swapCols(row ,minRowCol[1])
-        #print "swapped cols"
-
-
-    def killColEntry(self, i, j):
-        q = self.mat[j][i].leftQuotient(self.mat[i][i])
-        q = q.normalized(self.rels)
-        q = q.aInv()
-        #print "result of dividing col entry " + str(i) + " by " + str(j) + " is " + str(q)
-        self.addMultOfRow(j, i, q)
-
-
-    def killRowEntry(self, i, j):
-        q = self.mat[i][j].rightQuotient(self.mat[i][i])
-        q = q.normalized(self.rels)
-        q = q.aInv()
-        #print "result of dividing row entry " + str(i) + " by " + str(j) + " is " + str(q)
-        self.addMultOfCol(j, i, q)
-
-
-    def killRowCol(self,i):
-        self.minToTop(i)
-        #print self.mat
-        for row in range(i + 1, self.nRows()):
-            if not self.mat[row][i].isZero():
-                self.killColEntry(i, row)
-                self.killRowCol(i)
-        for col in range(i + 1, self.nCols()):
-            if not self.mat[i][col].isZero():
-                self.killRowEntry(i, col)
-                self.killRowCol(i)
-        #print self.mat
-
-
-    def diagonalize(self):
-        self.normalize()
-        #self.killNegatives()
-        self.centerTPowersOfRows()
-        for i in range(self.nRows()):
-            #print "in at " + str(i)
-            self.killRowCol(i)
+                    break
 
 
     #Only applicable for diagonal matrix
     def delta1(self):
         det = 0
-        for row in range(self.nCols()):
-            det += self.mat[row][row].powerDiff()
+        for rowAndCol in self.rowRange():
+            det += self.mat[rowAndCol][rowAndCol].powerDiff()
         return det
+
+
+    def killRowCol(self,i):
+        self.minToPivotPosition(i)
+        for row in range(i + 1, self.nRows()):
+            if not self.mat[row][i].isZero():
+                self.downgradeColEntry(i, row)
+                self.killRowCol(i)
+
+        for col in range(i + 1, self.nCols()):
+            if not self.mat[i][col].isZero():
+                self.downgradeRowEntry(i, col)
+                self.killRowCol(i)
+
+
+    def diagonalize(self, doPrint = True):
+        self.normalize()
+        self.centerTPowersOfRows()
+        for pivotRowAndCol in self.rowRange():
+            if doPrint:
+                print("killRowAndCol({})...".format(pivotRowAndCol))
+            self.killRowAndCol(pivotRowAndCol)
 
 
 ################################################################################
@@ -300,14 +306,14 @@ def testBattery():
         [ polyC, polyD, ],
     ]
 
-    rels1 = [
+    relsABCD = [
         SkewFieldWord("a_-999^1 * a_999^1"),
         SkewFieldWord("b_-999^1 * b_999^1"),
         SkewFieldWord("c_-999^1 * c_999^1"),
         SkewFieldWord("d_-999^1 * d_999^1"),
     ]
 
-    jMat1Orig = JPolyMat(pMat1, rels1)
+    jMat1Orig = JPolyMat(pMat1, relsABCD)
 
     jMat1 = jMat1Orig.copy()
 
@@ -455,14 +461,7 @@ def testBattery():
         [ polyCT, polyDTN3, ],
     ]
 
-    rels2 = [
-        SkewFieldWord("a_-999^1 * a_999^1"),
-        SkewFieldWord("b_-999^1 * b_999^1"),
-        SkewFieldWord("c_-999^1 * c_999^1"),
-        SkewFieldWord("d_-999^1 * d_999^1"),
-    ]
-
-    jMat2Orig = JPolyMat(pMat2, rels2)
+    jMat2Orig = JPolyMat(pMat2, relsABCD)
     jMat2 = jMat2Orig.copy()
 
     # for after
@@ -473,286 +472,156 @@ def testBattery():
 
     jMat2.centerTPowersOfRows();
 
-    # assertion for if we allow tpowers to come down
-    assert(jMat2.mat ==
-        [[polyAT_SN1, polyB_SN1],
-         [polyCT4_S3, polyD_S3]])
-
-    ## assertion for if we only let tpowers go up
+    ## assertion for if we allow tpowers to come down
     #assert(jMat2.mat ==
-    #    [[polyAT2, polyBT],
+    #    [[polyAT_SN1, polyB_SN1],
     #     [polyCT4_S3, polyD_S3]])
 
-    ############################################################################
-    # TODO
-    print("")
-    print("")
-    print("")
-    print("")
+    # assertion for if we only let tpowers go up
+    assert(jMat2.mat ==
+        [[polyAT2, polyBT],
+         [polyCT4_S3, polyD_S3]])
 
+    ############################################################################
+    # test posOfMinInSubmat
+
+    polyZe = SkewFieldPolynomial.zero()
+    polyT0 = SkewFieldPolynomial("(1) / (1) * T^0")
+    polyT1 = SkewFieldPolynomial("(1) / (1) * T^1")
+    polyT2 = SkewFieldPolynomial("(1) / (1) * T^2")
+
+    pMat3 = [
+        [ polyT0, polyT0, polyT0, ],
+        [ polyT0, polyT1, polyT0, ],
+        [ polyT0, polyZe, polyT2, ],
+    ]
+
+    jMat3 = JPolyMat(pMat3, relsABCD)
+
+    posOfMin3 = jMat3.posOfMinInSubmat(1)
+    assert(posOfMin3 == (1, 2))
+
+    pMat4 = [
+        [ polyT0, polyT0, polyT0, ],
+        [ polyT0, polyT1, polyZe, ],
+        [ polyT0, polyT0, polyT2, ],
+    ]
+
+    jMat4 = JPolyMat(pMat4, relsABCD)
+
+    posOfMin4 = jMat4.posOfMinInSubmat(1)
+    assert(posOfMin4 == (2, 1))
+
+    pMat5 = [
+        [ polyT0, polyT0, polyT0, ],
+        [ polyT0, polyT1, polyZe, ],
+        [ polyT0, polyT2, polyT0, ],
+    ]
+
+    jMat5 = JPolyMat(pMat5, relsABCD)
+
+    posOfMin5 = jMat5.posOfMinInSubmat(1)
+    assert(posOfMin5 == (2, 2))
+
+    pMat6 = [
+        [ polyT0, polyT0, polyT0, ],
+        [ polyT0, polyZe, polyZe, ],
+        [ polyT0, polyZe, polyZe, ],
+    ]
+
+    jMat6 = JPolyMat(pMat6, relsABCD)
+
+    posOfMin6 = jMat6.posOfMinInSubmat(1)
+    assert(posOfMin6 == (None, None))
+
+    ############################################################################
+    # tests over
+    print("test battery passed")
+
+
+def getKnotFromFile(fileName):
+    fileRead = open(fileName, "r")
+    polyMatSize = 0
+    polysGotten = 0
+
+    pMat = []
+    relations = []
+
+    for line in fileRead:
+        line = line.split("#")[0]
+        line = line.strip()
+
+        if len(line) == 0:
+            continue
+
+        # if haven't gotten mat size yet
+        if polyMatSize == 0:
+            polyMatSize = int(line)
+            if polyMatSize == 0:
+                raise ValueError("bad matrix size")
+        else:
+            if polysGotten < polyMatSize * polyMatSize:
+                if polysGotten % polyMatSize == 0:
+                    pMat.append([])
+
+                pMat[-1].append(SkewFieldPolynomial(line))
+
+                polysGotten += 1
+
+            else:
+                relations.append(SkewFieldWord(line))
+
+    if polysGotten != polyMatSize * polyMatSize \
+            or len(relations) != polyMatSize - 1:
+        raise ValueError("file did not match stated size")
+
+    return JPolyMat(pMat, relations)
 
 
 def main(argv=None):
 
-    #testBattery()
+    testBattery()
 
-    tMat3_1 = [
-        [
-            SkewFieldPolynomial("(1 + -1 * b_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_0^-1 * b_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * b_0^1 * b_1^-1 + 1 * b_1^-1) / (1 + -1 * b_1^-1) * T^1 ++ (-1 * b_0^-1 + 1 * b_0^-1 * b_2^-1) / (1 + -1 * b_1^-1) * T^0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_1^-1 * b_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_1^-1 * b_1^1) / (1) * T^1 ++ (1 * a_1^-1 * b_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(1 + -1 * b_1^-1 * b_2^1) / (1 + -1 * b_1^-1) * T^1 ++ (-1 * b_0^-1 + 1 * b_0^-1 * b_2^1) / (1 + -1 * b_1^-1) * T^0"),
-        ],
-    ]
+    knot3_1 = getKnotFromFile("knot3_1.txt")
+    knot4_1 = getKnotFromFile("knot4_1.txt")
+    knot5_1 = getKnotFromFile("knot5_1.txt")
+    knot5_2 = getKnotFromFile("knot5_2.txt")
+    knotSmall6_1 = getKnotFromFile("knotSmall6_1.txt")
+    knot6_2 = getKnotFromFile("knot6_2.txt")
 
-    rels3_1 = [
-        SkewFieldWord("a_0^1 * b_0^-1 * b_1^1"),
-        SkewFieldWord("b_0^1 * b_1^-1 * b_2^1"),
-    ]
+    print("knot3_1...")
+    knot3_1.diagonalize()
+    print("    knot3_1.delta1() = " + str(knot3_1.delta1()))
+    assert(knot3_1.delta1() == 1)
 
-    #print("Swap rows 0 and 2 = " + str(mat1swap.mat))
-    #mat1.swapRows(0, 2)
-    #assert(mat1.mat == mat1swap.mat)
+    print("knot4_1...")
+    knot4_1.diagonalize()
+    print("    knot4_1.delta1() = " + str(knot4_1.delta1()))
+    assert(knot4_1.delta1() == 1)
 
-    #for row in range(len(tMat3_1)):
-        #for col in range(len(tMat3_1)):
-            #print(tMat3_1[row][col].normalized(rels3_1))
+    print("knot5_1...")
+    knot5_1.diagonalize()
+    print("    knot5_1.delta1() = " + str(knot5_1.delta1()))
+    assert(knot5_1.delta1() == 3)
 
-    mat3_1 = JPolyMat(tMat3_1, rels3_1)
-    print("processing mat3_1...")
-    mat3_1.diagonalize()
-    print("    mat3_1.delta1() = " + str(mat3_1.delta1()))
+    print("knot5_2...")
+    knot5_2.diagonalize()
+    print("    knot5_2.delta1() = " + str(knot5_2.delta1()))
+    assert(knot5_2.delta1() == 1)
 
-    assert(mat3_1.delta1() == 1)
+    #return 1
 
-    tMat4_1 = [
-        [
-            SkewFieldPolynomial("(1 + -1 * a_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_1^1 * b_0^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * b_1^-1 * c_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(-1 * b_1^-1 * c_1^1) / (1) * T^1 ++ (1 * b_1^-1 * c_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-        ], [
-            SkewFieldPolynomial("(-1 * a_2^1 * b_1^1 * c_2^-1 + 1 * b_1^1) / (1) * T^1 ++ (1 + -1 * a_1^-1 * a_2^1 * b_1^1 * c_2^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(1 * b_1^1) / (1) * T^2 ++ (-1 * a_1^-1 * a_2^1 * b_1^1 * c_2^-1) / (1) * T^1"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_2^1 * b_1^1 * c_2^-1) / (1) * T^2"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_2^-1 * c_2^1) / (1) * T^1 ++ (1 + -1 * a_2^-1 * c_1^-1 * c_2^1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_2^-1 * c_2^1) / (1) * T^2"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(1) / (1) * T^2 ++ (-1 * a_2^-1 * c_1^-1 * c_2^1) / (1) * T^1"),
-        ],
-    ]
+    print("knotSmall6_1...")
+    knotSmall6_1.diagonalize()
+    print("    knotSmall6_1.delta1() = " + str(knotSmall6_1.delta1()))
+    #assert(knotSmall6_1.delta1() == ???)
 
+    print("knot6_2...")
+    knot6_2.diagonalize()
+    print("    knot6_2.delta1() = " + str(knot6_2.delta1()))
+    assert(knot6_2.delta1() == 3)
 
-    #print(tMat4_1)
-
-    rels4_1 = [
-        SkewFieldWord("a_0^1 * b_-1^-1"),
-        SkewFieldWord("b_0^1 * c_0^1 * c_1^-1"),
-        SkewFieldWord("c_0^1 * c_1^-3 * c_2^1"),
-    ]
-
-    mat4_1 = JPolyMat(tMat4_1, rels4_1)
-    print("processing mat4_1...")
-    mat4_1.diagonalize()
-    print("    mat4_1.delta1() = " + str(mat4_1.delta1()))
-
-    assert(mat4_1.delta1() == 1)
-
-    tMat5_1 = [
-        [
-            SkewFieldPolynomial("(1 + -1 * c_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_0^-1 * c_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(-1 * c_1^-1) / (1) * T^1 ++ (1 * a_0^-1 * c_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_1^1 * d_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_1^1 * b_0^-1 * d_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(-1 * a_1^1 * d_1^-1) / (1) * T^1 ++ (1 * a_1^1 * b_0^-1 * d_1^-1) / (1) * T^0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * b_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * b_1^1 * c_0^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_1^-1 * c_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_1^-1 * c_1^1) / (1) * T^1 ++ (1 * a_1^-1 * c_1^1 * d_0^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_1^-1 * c_1^1 * d_0^-1) / (1) * T^0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * b_1^-1 * d_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(-1 * b_1^-1 * d_1^1) / (1) * T^1 ++ (1 * b_1^-1 * d_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-        ],
-    ]
-
-
-    rels5_1 = [
-        SkewFieldWord("a_0^1 * b_0^-1 * c_1^1 * d_1^-1"),
-        SkewFieldWord("b_0^1 * c_0^-1 * d_1^1"),
-        SkewFieldWord("c_0^1 * d_-2^-1 * d_0^-1"),
-        SkewFieldWord("d_0^1 * d_1^-1 * d_2^1 * d_3^-1 * d_4^1"),
-    ]
-
-    mat5_1 = JPolyMat(tMat5_1, rels5_1)
-    print("processing mat5_1...")
-    mat5_1.diagonalize()
-    print("    mat5_1.delta1() = " + str(mat5_1.delta1()))
-
-    assert(mat5_1.delta1() == 3)
-
-    return 1
-
-    tMat5_2 = [
-        [
-            SkewFieldPolynomial("(1 + -1 * b_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_0^-1 * b_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * b_1^-1) / (1) * T^1 ++ (1 * a_0^-1 * b_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"), SkewFieldPolynomial("0")
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_1^1 * d_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_1^1 * b_0^-1 * d_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(-1 * a_1^1 * d_1^-1) / (1) * T^1 ++ (1 * a_1^1 * b_0^-1 * d_1^-1) / (1) * T^0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * b_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * b_1^1 * c_0^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_1^-1 * c_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * a_1^-1 * c_1^1) / (1) * T^1 ++ (1 * a_1^-1 * c_1^1 * d_0^-1) / (1) * T^0"),
-            SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_1^-1 * c_1^1 * d_0^-1) / (1) * T^0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * c_1^-1 * d_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("0"), SkewFieldPolynomial("0"),
-            SkewFieldPolynomial("(-1 * c_1^-1 * d_1^1) / (1) * T^1 ++ (1 * c_1^-1 * d_1^1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-        ],
-    ]
-
-    rel5_2 = [
-        SkewFieldWord("a_0^1 * b_-1^-1 * d_-1^1 * d_0^-1"),
-        SkewFieldWord("b_0^1 * c_-1^-1"),
-        SkewFieldWord("c_0^1 * d_1^-1 * d_2^2"),
-        SkewFieldWord("d_0^2 * d_1^-3 * d_2^2"),
-    ]
-
-    mat5_2 = JPolyMat(tMat5_2, rel5_2)
-    print("processing mat5_2...")
-    mat5_2.diagonalize()
-    print("    mat5_2.delta1() = " + str(mat5_2.delta1()))
-
-    assert(mat5_2.delta1() == 1)
-
-    return 1 # program does not work beyond this point
-
-    #This is smaller matrix for 6_1 -- only 2x2, but entries are
-    #more complicated. SkewFied does not like that
-    tMatSmall6_1 = [
-        [
-            SkewFieldPolynomial("(1 * a_0^1 * a_1^-2 + -1 * a_0^1 * a_1^-2 * a_2^2) / (1) * T^1 ++ (1 * a_0^1 + -1 * a_0^1 * a_1^-5 * a_2^2) / (1) * T^0"),
-            SkewFieldPolynomial("(1 * a_0^1 * a_1^-2 + 1 * a_0^1 * a_1^-2 * a_2^1) / (1) * T^2 ++ (-1 * a_0^1 * a_1^-5 * a_2^2 + -1 * a_0^1 * a_1^-4 * a_2^2 + -1 * a_0^1 * a_1^-3 * a_2^2 + -1 * a_0^1 * a_1^-2 + -1 * a_0^1 * a_1^-1) / (1) * T^1 ++ (1 + 1 * a_0^1 * a_1^-5 * a_2^2) / (1) * T^0"),
-        ], [
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial.zero(),
-        ],
-    ]
-
-    relsSmall6_1 = [
-        SkewFieldWord("a_0^2 * a_1^-5 * a_2^2")
-    ]
-
-    matSmall6_1 = JPolyMat(tMatSmall6_1,relsSmall6_1)
-    print("processing matSmall6_1...")
-    matSmall6_1.diagonalize()
-    print("    matSmall6_1.delta1 = " + str(matSmall6_1.delta1()))
-    assert(matSmall6_1.delta1() == 1)
-
-
-    tMat6_2 = [
-        [
-            SkewFieldPolynomial("(1 + -1 * b_2^-1 * d_3^-1) / (1) * T^1 ++ (1 + -1 * b_2^-1* d_2^1 * d_3^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(-1 * b_2^-1 * d_3^-1) / (1) * T^2"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(1) / (1) * T^2 ++ (-1 * b_2^-1 * d_2^1 * d_3^-1) / (1) * T^1"),
-            SkewFieldPolynomial.zero(),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * b_1^1 * e_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * b_1^1 * c_0^-1 * e_1^-1) / (1) * T^0"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(-1 * b_1^1 * e_1^-1) / (1) * T^1 ++ (1 * b_1^1 * c_0^-1 * e_1^-1) / (1) * T^0")
-        ], [
-            SkewFieldPolynomial("(1 + -1 * c_1^1) / (1) * T^0"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_3^1 * c_1^1) / (1) * T^0"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial.zero(),
-        ], [
-            SkewFieldPolynomial("(1 * a_4^-1 + -1 * a_4^-1 * b_2^1 * d_3^1) / (1) * T^1 ++ (1 + -1 * a_4^-1 * b_1^-1 * b_2^1 * d_3^1) / (1) * T^0"),
-            SkewFieldPolynomial("(1 * a_4^-1) / (1) * T^2 ++ (-1 * a_4^-1 * b_1^-1 * b_2^1 * d_3^1) / (1) * T^1"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_4^-1 * b_2^1 * d_3^1) / (1) * T^2"),
-            SkewFieldPolynomial.zero(),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * a_4^1 * d_2^-1) / (1) * T^0"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(-1 * a_4^1 * d_2^-1) / (1) * T^1 ++ (1 * a_4^1 * d_2^-1 * e_0^-1) / (1) * T^0"),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-            SkewFieldPolynomial("(-1 * a_4^1 * d_2^-1 * e_0^-1) / (1) * T^0"),
-        ], [
-            SkewFieldPolynomial("(1 + -1 * c_1^-1 * e_1^1) / (1) * T^0"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(-1 * c_1^-1 * e_1^1) / (1) * T^1 ++ (1 * c_1^-1 * e_1^1) / (1) * T^0"),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial.zero(),
-            SkewFieldPolynomial("(1) / (1) * T^1"),
-        ],
-    ]
-
-    rels6_2 = [SkewFieldWord("a_0^1 * b_-1^-1 * e_-1^1 * e_0^-1"),
-                 SkewFieldWord("b_0^1 * c_0^-1 * e_1^1"),
-                 SkewFieldWord("c_0^1 * e_-1^1 * e_0^-2 * e_1^1 * e_2^-1"),
-                 SkewFieldWord("d_0^1 * e_-1^-1 * e_1^-1"),
-                 SkewFieldWord("e_0^1 * e_1^-3 * e_2^3 * e_3^-3 * e_4^1")]
-
-    mat6_2 = JPolyMat(tMat6_2, rels6_2)
-    print("processing mat6_2...")
-    mat6_2.diagonalize()
-    print(mat6_2.delta1())
-
-    assert(mat6_2.delta1() == 3)
-
+    return 0
 
 
 if __name__ == "__main__":
