@@ -56,20 +56,27 @@ import math
 # to help overcome our heartfelt loss of the treasured Counter class...
 # one advantage is some auto-canonization from deleting zero-valued items
 def updateCounts(counter, otherGuy):
-    # step1: merge
-
     if isinstance(otherGuy, dict):
         for key, value in otherGuy.iteritems():
-            counter[key] = counter.get(key, 0) + value;
+            if value == 0:
+                continue
+
+            newValue = counter.get(key, 0) + value
+
+            if newValue == 0:
+                counter.pop(key)
+            else:
+                counter[key] = newValue
+
     # else assume list/tuple/set
     else:
         for key in otherGuy:
-            counter[key] = counter.get(key, 0) + 1;
+            newValue = counter.get(key, 0) + 1
 
-    # step2: simplify by removing zero-valued items
-    for key, value in counter.items():
-        if counter[key] == 0:
-            counter.pop(key)
+            if newValue == 0:
+                counter.pop(key)
+            else:
+                counter[key] = newValue
 
 
 ################################################################################
@@ -352,7 +359,6 @@ class SkewFieldWord():
     def times(self, other):
         product = SkewFieldWord(self.letterCtr)
         updateCounts(product.letterCtr, other.letterCtr)
-        product.canonize() # probably not needed
         return product
 
 
@@ -474,6 +480,10 @@ class SkewFieldWord():
         return None
 
 
+    def numLetters(self):
+        return len(self.letterCtr)
+
+
 ################################################################################
 # SkewFieldSentence is the sum of SkewFieldWords;
 # can also be thought of as a polynomial of SkewFieldLetters
@@ -502,7 +512,10 @@ class SkewFieldSentence():
                 else:
                     word = SkewFieldWord.one()
 
-                updateCounts(self.wordCtr, { word : int(coef) })
+                coefInt = int(coef)
+
+                if(coefInt != 0):
+                    updateCounts(self.wordCtr, { word : coefInt })
         else:
             updateCounts(self.wordCtr, words)
 
@@ -657,6 +670,14 @@ class SkewFieldSentence():
         reducedByWord = []
         #TODO
 
+
+    def numLetters(self):
+        letterCount = 0
+
+        for word in self.wordCtr.iterkeys():
+            letterCount += word.numLetters()
+
+        return letterCount
 
 
 ################################################################################
@@ -882,6 +903,10 @@ class SkewFieldMonomial():
             self.numer.normalized(relations),
             self.denom.normalized(relations),
             self.tpower)
+
+
+    def numLetters(self):
+        return self.numer.numLetters() + self.denom.numLetters()
 
 
 ################################################################################
@@ -1152,6 +1177,15 @@ class SkewFieldPolynomial():
         for mono in self.monoDict.itervalues():
             newMonos.append(mono.normalized(relations))
         return SkewFieldPolynomial(newMonos)
+
+
+    def numLetters(self):
+        letterCount = 0
+
+        for mono in self.monoDict.itervalues():
+            letterCount += mono.numLetters()
+
+        return letterCount
 
 
 ################################################################################

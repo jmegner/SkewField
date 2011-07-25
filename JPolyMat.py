@@ -45,6 +45,16 @@ class JPolyMat():
         return rep
 
 
+    def numLetters(self):
+        letterCount = 0
+
+        for rowIdx in self.rowRange():
+            for colIdx in self.colRange():
+                letterCount += self.mat[rowIdx][colIdx].numLetters()
+
+        return letterCount
+
+
     def normalize(self):
         self.mat = [[poly.normalized(self.rels) for poly in row] for row in self.mat]
 
@@ -232,6 +242,7 @@ class JPolyMat():
             for targetRowIdx in range(pivotRowAndCol + 1, self.nRows()):
                 if not self.mat[targetRowIdx][pivotRowAndCol].isZero():
                     self.downgradeColEntry(pivotRowAndCol, targetRowIdx)
+                    print("numLetters = {}".format(self.numLetters()))
 
                     if doPrint:
                         print("after downgradeColEntry(pivotRC={}, targetR={})"
@@ -250,6 +261,7 @@ class JPolyMat():
             for targetColIdx in range(pivotRowAndCol + 1, self.nCols()):
                 if not self.mat[pivotRowAndCol][targetColIdx].isZero():
                     self.downgradeRowEntry(pivotRowAndCol, targetColIdx)
+                    print("numLetters = {}".format(self.numLetters()))
 
                     if doPrint:
                         print("after downgradeRowEntry(pivotRC={}, targetC={})"
@@ -270,11 +282,15 @@ class JPolyMat():
     def diagonalize(self, doPrint = False):
         self.normalize()
         self.centerTPowersOfRows()
+
+        print("numLetters = {}".format(self.numLetters()))
+
         for pivotRowAndCol in self.rowRange():
             if doPrint:
                 print(self.niceRep())
                 print("killRowAndCol({})...".format(pivotRowAndCol))
             self.killRowAndCol(pivotRowAndCol, doPrint)
+            print("numLetters = {}".format(self.numLetters()))
 
 
 ################################################################################
@@ -600,7 +616,7 @@ def main(argv=None):
     print("knot5_2.delta1() = " + str(knot5_2.delta1()))
     assert(knot5_2.delta1() == 1)
 
-    return 1
+    #return 1
 
     print("")
     print("knotSmall6_1...")
@@ -610,7 +626,7 @@ def main(argv=None):
 
     print("")
     print("knot6_2...")
-    knot6_2.diagonalize(True)
+    knot6_2.diagonalize()
     print("knot6_2.delta1() = " + str(knot6_2.delta1()))
     assert(knot6_2.delta1() == 3)
 
