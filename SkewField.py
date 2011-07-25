@@ -463,6 +463,17 @@ class SkewFieldWord():
         return newWord
 
 
+    def letterSet(self):
+        return set(self.letterCtr.iterkeys())
+
+
+    def withoutFactor(self, factorWord):
+        if factorWord.letterSet() < self.letterSet():
+            return self.dividedBy(factorWord)
+
+        return None
+
+
 ################################################################################
 # SkewFieldSentence is the sum of SkewFieldWords;
 # can also be thought of as a polynomial of SkewFieldLetters
@@ -630,6 +641,7 @@ class SkewFieldSentence():
             inverse.wordCtr[word] = -coef
         return inverse
 
+
     def normalized(self, relations):
         normalizedWordCtr = dict()
 
@@ -639,6 +651,11 @@ class SkewFieldSentence():
 
         return SkewFieldSentence(normalizedWordCtr)
 
+
+    def withoutFactor(self, factorSnt):
+        unreduced = self
+        reducedByWord = []
+        #TODO
 
 
 
@@ -802,22 +819,27 @@ class SkewFieldMonomial():
 
 
     def times(self, other):
-        product = SkewFieldMonomial.zero()
-
         # product's tpower is easy
-        product.tpower = self.tpower + other.tpower
+        prodTPower = self.tpower + other.tpower
 
         # new numer and denom is trickier; must increase subscripts in other's
         # letters by the amount of self.tpower (because of commutation),
         # then we can multiply
 
-        product.numer = self.numer.times(
-            other.numer.increasedSubs(self.tpower))
-        product.denom = self.denom.times(
-            other.denom.increasedSubs(self.tpower))
+        adjustedOtherNumer = other.numer.increasedSubs(self.tpower)
+        adjustedOtherDenom = other.denom.increasedSubs(self.tpower)
 
-        product.canonize()
-        return product
+        if self.numer == adjustedOtherDenom:
+            prodNumer = adjustedOtherNumer
+            prodDenom = self.denom
+        elif self.denom == adjustedOtherNumer:
+            prodNumer = self.numer
+            prodDenom = adjustedOtherDenom
+        else:
+            prodNumer = self.numer.times(adjustedOtherNumer)
+            prodDenom = self.denom.times(adjustedOtherDenom)
+
+        return SkewFieldMonomial(prodNumer, prodDenom, prodTPower)
 
 
     def dividedBy(self, other):
@@ -1117,6 +1139,12 @@ class SkewFieldPolynomial():
     # no need for highestPower since that is taken care of by degree
     def lowestPower(self):
         return self.asPowerList()[-1]
+
+
+    def numerDenomList(self):
+        monoList = self.asMonoList()
+        return [mono.numer for mono in monoList] \
+            + [mono.denom for mono in monoList]
 
 
     def normalized(self, relations):
@@ -1929,6 +1957,31 @@ def SkewFieldMain(argv=None):
 
     cprint("")
     cprint("END OF SKEWFIELD.PY TEST BATTERY #################################")
+
+    dividend = SkewFieldPolynomial(
+        "(1 * c_0^1) / (1) * T^2 ++ " +
+        "(1 * b_0^1) / (1) * T^1 ++ " +
+        "(1 * a_0^1) / (1) * T^0")
+
+    divisor = SkewFieldPolynomial(
+        "(1 * e_0^1) / (1) * T^1 ++ " +
+        "(1 * d_0^1) / (1) * T^0")
+
+    cprint("dividend = " + str(dividend))
+    cprint("divisor = " + str(divisor))
+
+    leftQ = dividend.leftQuotient(divisor)
+    leftProd = leftQ.times(divisor)
+
+    cprint("leftQ = " + str(leftQ))
+    cprint("leftProd = " + str(leftProd))
+
+    rightQ = dividend.rightQuotient(divisor)
+    rightProd = divisor.times(rightQ)
+
+    cprint("rightQ = " + str(rightQ))
+    cprint("rightProd = " + str(rightProd))
+
 
     return 0
 

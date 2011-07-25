@@ -267,26 +267,14 @@ class JPolyMat():
         return det
 
 
-    def killRowCol(self,i):
-        self.minToPivotPosition(i)
-        for row in range(i + 1, self.nRows()):
-            if not self.mat[row][i].isZero():
-                self.downgradeColEntry(i, row)
-                self.killRowCol(i)
-
-        for col in range(i + 1, self.nCols()):
-            if not self.mat[i][col].isZero():
-                self.downgradeRowEntry(i, col)
-                self.killRowCol(i)
-
-
-    def diagonalize(self, doPrint = True):
+    def diagonalize(self, doPrint = False):
         self.normalize()
         self.centerTPowersOfRows()
         for pivotRowAndCol in self.rowRange():
             if doPrint:
+                print(self.niceRep())
                 print("killRowAndCol({})...".format(pivotRowAndCol))
-            self.killRowAndCol(pivotRowAndCol)
+            self.killRowAndCol(pivotRowAndCol, doPrint)
 
 
 ################################################################################
@@ -591,34 +579,39 @@ def main(argv=None):
 
     print("knot3_1...")
     knot3_1.diagonalize()
-    print("    knot3_1.delta1() = " + str(knot3_1.delta1()))
+    print("knot3_1.delta1() = " + str(knot3_1.delta1()))
     assert(knot3_1.delta1() == 1)
 
+    print("")
     print("knot4_1...")
     knot4_1.diagonalize()
-    print("    knot4_1.delta1() = " + str(knot4_1.delta1()))
+    print("knot4_1.delta1() = " + str(knot4_1.delta1()))
     assert(knot4_1.delta1() == 1)
 
+    print("")
     print("knot5_1...")
     knot5_1.diagonalize()
-    print("    knot5_1.delta1() = " + str(knot5_1.delta1()))
+    print("knot5_1.delta1() = " + str(knot5_1.delta1()))
     assert(knot5_1.delta1() == 3)
 
+    print("")
     print("knot5_2...")
     knot5_2.diagonalize()
-    print("    knot5_2.delta1() = " + str(knot5_2.delta1()))
+    print("knot5_2.delta1() = " + str(knot5_2.delta1()))
     assert(knot5_2.delta1() == 1)
 
-    #return 1
+    return 1
 
+    print("")
     print("knotSmall6_1...")
     knotSmall6_1.diagonalize()
-    print("    knotSmall6_1.delta1() = " + str(knotSmall6_1.delta1()))
-    #assert(knotSmall6_1.delta1() == ???)
+    print("knotSmall6_1.delta1() = " + str(knotSmall6_1.delta1()))
+    assert(knotSmall6_1.delta1() == 1)
 
+    print("")
     print("knot6_2...")
-    knot6_2.diagonalize()
-    print("    knot6_2.delta1() = " + str(knot6_2.delta1()))
+    knot6_2.diagonalize(True)
+    print("knot6_2.delta1() = " + str(knot6_2.delta1()))
     assert(knot6_2.delta1() == 3)
 
     return 0
