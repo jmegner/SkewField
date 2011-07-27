@@ -43,7 +43,7 @@ a class does not necessarily have every function in the list;
 
 
 global SFFileVersion
-SFFileVersion = "0.20"
+SFFileVersion = "0.21"
 
 
 import sys
@@ -51,6 +51,10 @@ import getopt
 import re
 import collections
 import math
+
+
+global WorstLetterCount
+WorstLetterCount = 0
 
 
 # to help overcome our heartfelt loss of the treasured Counter class...
@@ -121,9 +125,16 @@ class SkewFieldLetter():
         # this way our hash function is good at generating unique 1-tuples for
         # any combination of the alpha-sub 2-tuples
 
-        r = self.alpha
-        c = self.sub
-        return c * (c + 1) // 2 + r * c + r * (r + 1) // 2 + r
+        #r = self.alpha
+        #c = self.sub
+        #return c * (c + 1) // 2 + r * c + r * (r + 1) // 2 + r
+        return self.alpha * 1000 + self.sub
+
+
+    def __eq__(self, other):
+        if self.alpha != other.alpha:
+            return False
+        return self.sub == other.sub
 
 
     def __cmp__(self, other):
@@ -239,10 +250,13 @@ class SkewFieldWord():
                         self.letterCtr,
                         { SkewFieldLetter(letterStr) : int(power) }
                     )
+        elif isinstance(letters, dict):
+            self.letterCtr = dict(letters)
+            #self.letterCtr = letters
         else:
             updateCounts(self.letterCtr, letters)
 
-        self.canonize()
+        #self.canonize()
 
 
     def __str__(self):
@@ -264,14 +278,31 @@ class SkewFieldWord():
         hashVal = 0
 
         for letter, power in self.letterCtr.iteritems():
-            hashVal += hash(letter) * power
+            #hashVal += hash(letter) * power
+            hashVal += (letter.alpha * 1000 + letter.sub) * power
 
         return hashVal
 
 
+    # hopefully used by dictionaries in preference over __cmp__
+    def __eq__(self, other):
+        selfLen = len(self.letterCtr)
+        otherLen = len(other.letterCtr)
+
+        if selfLen != otherLen:
+            return False
+
+        for selfLetter, selfPower in self.letterCtr.iteritems():
+            otherPower = other.letterCtr.get(selfLetter, 0)
+
+            if selfPower != otherPower:
+                return False
+
+        return True
+
 
     def __cmp__(self, other):
-        # go through letters in each word in order;
+        # go through letters in both words in order;
         # compare the letter, then compare the power
 
         selfSortedLetters = sorted(self.letterCtr.iterkeys())
@@ -293,9 +324,12 @@ class SkewFieldWord():
             if selfLetterPower > otherLetterPower:
                 return 1
 
-        if len(selfSortedLetters) < len(otherSortedLetters):
+        selfLen = len(self.letterCtr)
+        otherLen = len(other.letterCtr)
+
+        if selfLen < otherLen:
             return -1
-        if len(selfSortedLetters) > len(otherSortedLetters):
+        if selfLen > otherLen:
             return 1
 
         # words are same
@@ -342,7 +376,7 @@ class SkewFieldWord():
         newLetterCtr = dict()
         for letter, power in self.letterCtr.iteritems():
             newLetter = SkewFieldLetter(letter.alpha, letter.sub + increment)
-            newLetterCtr[newLetter] = int(power)
+            newLetterCtr[newLetter] = power
         return SkewFieldWord(newLetterCtr)
 
 
@@ -395,44 +429,34 @@ class SkewFieldWord():
         return (minSub, powerForMinSub, maxSub, powerForMaxSub)
 
 
-    def firstAbnormalLetter(self, relations):
-        for letter in sorted(self.letterCtr.iterkeys()):
+    def someAbnormalLetter(self, relations):
+        for letter, power in self.letterCtr.iteritems():
             alpha = letter.alpha
-            power = self.letterCtr[letter]
             sub = letter.sub
             (minSub, minPower, maxSub, maxPower) \
                 = relations[alpha].extremesOfAlpha(alpha)
 
-            # letter is abnormal if it is outside of the left-inclusive
-            # minSub..maxSub range and it's power is outside the
-            # 0..abs(relPower) range
-            if (sub < minSub and not (0 <= power < abs(minPower))) \
-                or (sub >= maxSub and not (0 <= power < abs(maxPower))) \
-            :
-                return letter
+            ## letter is abnormal if it is outside of the left-inclusive
+            ## minSub..maxSub range and it's power is outside the
+            ## 0..abs(relPower) range
+            #if (sub < minSub and not (0 <= power < abs(minPower))) \
+            #    or (sub >= maxSub and not (0 <= power < abs(maxPower))) \
+            #:
+            #    return letter
 
-        return None
+            if sub < minSub and not (0 <= power < abs(minPower)):
+                return (letter, minSub, minPower)
+
+            if sub >= maxSub and not (0 <= power < abs(maxPower)):
+                return (letter, maxSub, maxPower)
+
+        return (None, None, None)
 
 
-    def normalizedAtLetter(self, letter, relations):
+    def normalizedAtLetter(self, letter, relSub, relPower, relations):
         alpha = letter.alpha
-        power = self.letterCtr[letter]
         sub = letter.sub
-        (minSub, minPower, maxSub, maxPower) \
-            = relations[alpha].extremesOfAlpha(alpha)
-
-        relSub = 0
-        relPower = 0
-
-        if sub < minSub:
-            relSub = minSub
-            relPower = minPower
-        elif sub >= maxSub:
-            relSub = maxSub
-            relPower = maxPower
-
-        if relPower == 0:
-            return self
+        power = self.letterCtr[letter]
 
         exponent = -(power // relPower)
 
@@ -451,22 +475,27 @@ class SkewFieldWord():
         result = self
 
         while True:
-            abnormalLetter = result.firstAbnormalLetter(relations)
+            (abnormalLetter, relSub, relPower) \
+                = result.someAbnormalLetter(relations)
+
             if abnormalLetter is None:
                 break
 
-            result = result.normalizedAtLetter(abnormalLetter, relations)
+            result = result.normalizedAtLetter(abnormalLetter,
+                relSub, relPower, relations)
 
         return result
 
 
     def raisedTo(self, power):
-        newWord = SkewFieldWord()
+        resultLetterCtr = dict()
 
-        for letter, letterPower in self.letterCtr.iteritems():
-            newWord.letterCtr[letter.deepcopy()] = letterPower * power
+        if power != 0:
+            for letter, letterPower in self.letterCtr.iteritems():
+                if letterPower != 0:
+                    resultLetterCtr[letter] = letterPower * power
 
-        return newWord
+        return SkewFieldWord(resultLetterCtr)
 
 
     def letterSet(self):
@@ -516,10 +545,12 @@ class SkewFieldSentence():
 
                 if(coefInt != 0):
                     updateCounts(self.wordCtr, { word : coefInt })
+        elif isinstance(words, dict):
+            self.wordCtr = dict(words)
         else:
             updateCounts(self.wordCtr, words)
 
-        self.canonize()
+        #self.canonize()
 
 
     def __str__(self):
@@ -548,6 +579,21 @@ class SkewFieldSentence():
             hashVal += hash(word) * coef
         return hashVal
 
+
+    def __eq__(self, other):
+        selfLen = len(self.wordCtr)
+        otherLen = len(other.wordCtr)
+
+        if selfLen != otherLen:
+            return False
+
+        for selfWord, selfCoef in self.wordCtr.iteritems():
+            otherCoef = other.wordCtr.get(selfWord, 0)
+
+            if selfCoef != otherCoef:
+                return False
+
+        return True
 
     def __cmp__(self, other):
         selfSortedWords = sorted(self.wordCtr.iterkeys())
@@ -620,17 +666,16 @@ class SkewFieldSentence():
 
 
     def increasedSubs(self, increment):
-        result = SkewFieldSentence()
+        resultWordCtr = dict()
         for word, coef in self.wordCtr.iteritems():
-            result.wordCtr[word.increasedSubs(increment)] = coef
-        return result
+            resultWordCtr[word.increasedSubs(increment)] = coef
+        return SkewFieldSentence(resultWordCtr)
 
 
     def plus(self, other):
-        result = SkewFieldSentence(self.wordCtr)
-        updateCounts(result.wordCtr, other.wordCtr)
-        result.canonize() # probably not needed
-        return result
+        resultWordCtr = dict(self.wordCtr)
+        updateCounts(resultWordCtr, other.wordCtr)
+        return SkewFieldSentence(resultWordCtr)
 
 
     def minus(self, other):
@@ -638,21 +683,40 @@ class SkewFieldSentence():
 
 
     def times(self, other):
-        product = SkewFieldSentence() # empty sentence
-        for selfWord, selfWordCoef in self.wordCtr.items():
-            for otherWord, otherWordCoef in other.wordCtr.items():
-                updateCounts(
-                    product.wordCtr,
-                    { selfWord.times(otherWord) : selfWordCoef * otherWordCoef})
-        product.canonize();
-        return product
+        prodWordCtr = dict()
+
+        global WorstLetterCount
+
+        letterCount = self.numLetters() + other.numLetters()
+
+        if letterCount > WorstLetterCount:
+            WorstLetterCount = letterCount
+            print("WorstLetterCount={}".format(WorstLetterCount))
+
+        for selfWord, selfWordCoef in self.wordCtr.iteritems():
+            for otherWord, otherWordCoef in other.wordCtr.iteritems():
+                #updateCounts(prodWordCtr,
+                #    { selfWord.times(otherWord) : selfWordCoef * otherWordCoef})
+
+                prodWord = selfWord.times(otherWord)
+                newCoef = prodWordCtr.get(prodWord, 0) \
+                    + selfWordCoef * otherWordCoef
+
+                if newCoef == 0:
+                    prodWordCtr.pop(prodWord)
+                else:
+                    prodWordCtr[prodWord] = newCoef
+
+        return SkewFieldSentence(prodWordCtr)
 
 
     def aInv(self):
-        inverse = SkewFieldSentence()
+        invWordCtr = dict()
+
         for word, coef in self.wordCtr.items():
-            inverse.wordCtr[word] = -coef
-        return inverse
+            invWordCtr[word] = -coef
+
+        return SkewFieldSentence(invWordCtr)
 
 
     def normalized(self, relations):
@@ -713,9 +777,9 @@ class SkewFieldMonomial():
                 self.tpower = int(tpowerStr)
 
         elif len(args) == 3:
-            self.numer = args[0].deepcopy() # type SkewFieldSentence
-            self.denom = args[1].deepcopy() # type SkewFieldSentence
-            self.tpower = int(args[2])      # type integer
+            self.numer = args[0]  # type SkewFieldSentence
+            self.denom = args[1]  # type SkewFieldSentence
+            self.tpower = args[2] # type integer
 
         else:
             raise ValueError("bad SkewFieldMonomial() args " + str(args))
@@ -751,7 +815,7 @@ class SkewFieldMonomial():
 
         sumMono = self.plusSentencePart(other.aInv())
 
-        if sumMono.numer == SkewFieldSentence.zero():
+        if sumMono.numer.isZero():
             return 0
 
         # now back to straightforward comparison
@@ -1315,7 +1379,6 @@ def SkewFieldMain(argv=None):
     ltrs3Dict = {
         SkewFieldLetter("b", 1) : 3,
         SkewFieldLetter("c", 2) : 1,
-        SkewFieldLetter("d", 3) : 0,
     }
 
     global wrd3
@@ -1477,6 +1540,7 @@ def SkewFieldMain(argv=None):
 
     global snt8Str
     snt8Str = "6 * a_0^1 + 10 * a_0^7 * b_0^1 + 10 * a_0^8 + 6 * b_0^1"
+    #snt8Str = "6 * a_0^1 + 10 * a_0^8 + 6 * b_0^1 + 10 * a_0^7 * b_0^1"
     global snt8
     snt8 = snt2.times(snt1).times(snt7)
     cprint("(snt2 * snt1) * snt7 = snt8 = " + str(snt8))

@@ -12,6 +12,8 @@ from SkewField import *
 # note: rows use left-multiplications and left-quotients
 # cols use right-multiplications and right-quotients
 
+global DoAll
+DoAll = False
 
 class JPolyMat():
 
@@ -53,6 +55,17 @@ class JPolyMat():
                 letterCount += self.mat[rowIdx][colIdx].numLetters()
 
         return letterCount
+
+
+    def numNonzeroes(self):
+        nonZeroCount = 0
+
+        for rowIdx in self.rowRange():
+            for colIdx in self.colRange():
+                if not self.mat[rowIdx][colIdx].isZero():
+                    nonZeroCount += 1
+
+        return nonZeroCount
 
 
     def normalize(self):
@@ -242,12 +255,17 @@ class JPolyMat():
             for targetRowIdx in range(pivotRowAndCol + 1, self.nRows()):
                 if not self.mat[targetRowIdx][pivotRowAndCol].isZero():
                     self.downgradeColEntry(pivotRowAndCol, targetRowIdx)
-                    print("numLetters = {}".format(self.numLetters()))
+                    print("krac: p={} tr={} numLetters={} nonZeroes={}"
+                        .format(pivotRowAndCol, targetRowIdx,
+                        self.numLetters(), self.numNonzeroes()))
 
                     if doPrint:
                         print("after downgradeColEntry(pivotRC={}, targetR={})"
                             .format(pivotRowAndCol, targetRowIdx))
                         print(self.degRep())
+
+                    if not DoAll and pivotRowAndCol == 2 and targetRowIdx == 3:
+                        sys.exit()
 
                     break
 
@@ -261,7 +279,10 @@ class JPolyMat():
             for targetColIdx in range(pivotRowAndCol + 1, self.nCols()):
                 if not self.mat[pivotRowAndCol][targetColIdx].isZero():
                     self.downgradeRowEntry(pivotRowAndCol, targetColIdx)
-                    print("numLetters = {}".format(self.numLetters()))
+
+                    print("krac: p={} tc={} numLetters={} nonZeroes={}"
+                        .format(pivotRowAndCol, targetColIdx,
+                        self.numLetters(), self.numNonzeroes()))
 
                     if doPrint:
                         print("after downgradeRowEntry(pivotRC={}, targetC={})"
@@ -280,17 +301,21 @@ class JPolyMat():
 
 
     def diagonalize(self, doPrint = False):
-        self.normalize()
-        self.centerTPowersOfRows()
+        try:
+            self.normalize()
+            self.centerTPowersOfRows()
 
-        print("numLetters = {}".format(self.numLetters()))
+            print("diagonalize: numLetters={} nonZeroes={}"
+                .format(self.numLetters(), self.numNonzeroes()))
 
-        for pivotRowAndCol in self.rowRange():
-            if doPrint:
-                print(self.niceRep())
-                print("killRowAndCol({})...".format(pivotRowAndCol))
-            self.killRowAndCol(pivotRowAndCol, doPrint)
-            print("numLetters = {}".format(self.numLetters()))
+            for pivotRowAndCol in self.rowRange():
+                if doPrint:
+                    print(self.niceRep())
+                    print("killRowAndCol({})...".format(pivotRowAndCol))
+                self.killRowAndCol(pivotRowAndCol, doPrint)
+
+        except KeyboardInterrupt:
+            sys.exit
 
 
 ################################################################################
@@ -584,6 +609,11 @@ def getKnotFromFile(fileName):
 
 def main(argv=None):
 
+    global DoAll
+
+    if len(argv) >= 2 and argv[1] == "-a":
+        DoAll = True
+
     testBattery()
 
     knot3_1 = getKnotFromFile("knot3_1.txt")
@@ -593,36 +623,35 @@ def main(argv=None):
     knotSmall6_1 = getKnotFromFile("knotSmall6_1.txt")
     knot6_2 = getKnotFromFile("knot6_2.txt")
 
-    print("knot3_1...")
-    knot3_1.diagonalize()
-    print("knot3_1.delta1() = " + str(knot3_1.delta1()))
-    assert(knot3_1.delta1() == 1)
+    if DoAll:
+        print("knot3_1...")
+        knot3_1.diagonalize()
+        print("knot3_1.delta1() = " + str(knot3_1.delta1()))
+        assert(knot3_1.delta1() == 1)
 
-    print("")
-    print("knot4_1...")
-    knot4_1.diagonalize()
-    print("knot4_1.delta1() = " + str(knot4_1.delta1()))
-    assert(knot4_1.delta1() == 1)
+        print("")
+        print("knot4_1...")
+        knot4_1.diagonalize()
+        print("knot4_1.delta1() = " + str(knot4_1.delta1()))
+        assert(knot4_1.delta1() == 1)
 
-    print("")
-    print("knot5_1...")
-    knot5_1.diagonalize()
-    print("knot5_1.delta1() = " + str(knot5_1.delta1()))
-    assert(knot5_1.delta1() == 3)
+        print("")
+        print("knot5_1...")
+        knot5_1.diagonalize()
+        print("knot5_1.delta1() = " + str(knot5_1.delta1()))
+        assert(knot5_1.delta1() == 3)
 
-    print("")
-    print("knot5_2...")
-    knot5_2.diagonalize()
-    print("knot5_2.delta1() = " + str(knot5_2.delta1()))
-    assert(knot5_2.delta1() == 1)
+        print("")
+        print("knot5_2...")
+        knot5_2.diagonalize()
+        print("knot5_2.delta1() = " + str(knot5_2.delta1()))
+        assert(knot5_2.delta1() == 1)
 
-    #return 1
-
-    print("")
-    print("knotSmall6_1...")
-    knotSmall6_1.diagonalize()
-    print("knotSmall6_1.delta1() = " + str(knotSmall6_1.delta1()))
-    assert(knotSmall6_1.delta1() == 1)
+        print("")
+        print("knotSmall6_1...")
+        knotSmall6_1.diagonalize()
+        print("knotSmall6_1.delta1() = " + str(knotSmall6_1.delta1()))
+        assert(knotSmall6_1.delta1() == 1)
 
     print("")
     print("knot6_2...")
@@ -634,5 +663,5 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv))
 
