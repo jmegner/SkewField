@@ -53,8 +53,8 @@ import collections
 import math
 
 
-global WorstLetterCount
-WorstLetterCount = 0
+#global WorstLetterCount
+#WorstLetterCount = 0
 
 
 # to help overcome our heartfelt loss of the treasured Counter class...
@@ -685,27 +685,18 @@ class SkewFieldSentence():
     def times(self, other):
         prodWordCtr = dict()
 
-        global WorstLetterCount
+        #global WorstLetterCount
 
-        letterCount = self.numLetters() + other.numLetters()
+        #letterCount = self.numLetters() + other.numLetters()
 
-        if letterCount > WorstLetterCount:
-            WorstLetterCount = letterCount
-            print("WorstLetterCount={}".format(WorstLetterCount))
+        #if letterCount > WorstLetterCount:
+        #    WorstLetterCount = letterCount
+        #    print("WorstLetterCount={}".format(WorstLetterCount))
 
         for selfWord, selfWordCoef in self.wordCtr.iteritems():
             for otherWord, otherWordCoef in other.wordCtr.iteritems():
-                #updateCounts(prodWordCtr,
-                #    { selfWord.times(otherWord) : selfWordCoef * otherWordCoef})
-
-                prodWord = selfWord.times(otherWord)
-                newCoef = prodWordCtr.get(prodWord, 0) \
-                    + selfWordCoef * otherWordCoef
-
-                if newCoef == 0:
-                    prodWordCtr.pop(prodWord)
-                else:
-                    prodWordCtr[prodWord] = newCoef
+                updateCounts(prodWordCtr,
+                    { selfWord.times(otherWord) : selfWordCoef * otherWordCoef})
 
         return SkewFieldSentence(prodWordCtr)
 
@@ -1267,7 +1258,7 @@ def SkewFieldMain(argv=None):
 
     cprint = noPrint
 
-    if len(argv) > 1:
+    if not(argv is None) and len(argv) > 1:
         for arg in argv[1:]:
             if arg == "-v" or arg == "--verbose":
                 cprint = yesPrint

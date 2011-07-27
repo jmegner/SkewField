@@ -12,8 +12,6 @@ from SkewField import *
 # note: rows use left-multiplications and left-quotients
 # cols use right-multiplications and right-quotients
 
-global DoAll
-DoAll = False
 
 class JPolyMat():
 
@@ -238,57 +236,24 @@ class JPolyMat():
         self.addMultOfRow(targetRowIdx, pivotRowAndCol, reducingScaler)
 
 
-    def killRowAndCol(self, pivotRowAndCol, doPrint = False):
-        if doPrint:
-            print("")
-            print("killRowAndCol({})".format(pivotRowAndCol))
-            print(self.degRep())
+    def killRowAndCol(self, pivotRowAndCol):
 
         # kill non-pivot elements in col
         while self.numNonzeroPolys(self.getCol(pivotRowAndCol)) > 1:
             self.minToPivotPosition(pivotRowAndCol)
 
-            if doPrint:
-                print("after minToPivotPosition({})".format(pivotRowAndCol))
-                print(self.degRep())
-
             for targetRowIdx in range(pivotRowAndCol + 1, self.nRows()):
                 if not self.mat[targetRowIdx][pivotRowAndCol].isZero():
                     self.downgradeColEntry(pivotRowAndCol, targetRowIdx)
-                    print("krac: p={} tr={} numLetters={} nonZeroes={}"
-                        .format(pivotRowAndCol, targetRowIdx,
-                        self.numLetters(), self.numNonzeroes()))
-
-                    if doPrint:
-                        print("after downgradeColEntry(pivotRC={}, targetR={})"
-                            .format(pivotRowAndCol, targetRowIdx))
-                        print(self.degRep())
-
-                    if not DoAll and pivotRowAndCol == 2 and targetRowIdx == 3:
-                        sys.exit()
-
                     break
 
         # kill non-pivot elements in row
         while self.numNonzeroPolys(self.getRow(pivotRowAndCol)) > 1:
             self.minToPivotPosition(pivotRowAndCol)
-            if doPrint:
-                print("after minToPivotPosition({})".format(pivotRowAndCol))
-                print(self.degRep())
 
             for targetColIdx in range(pivotRowAndCol + 1, self.nCols()):
                 if not self.mat[pivotRowAndCol][targetColIdx].isZero():
                     self.downgradeRowEntry(pivotRowAndCol, targetColIdx)
-
-                    print("krac: p={} tc={} numLetters={} nonZeroes={}"
-                        .format(pivotRowAndCol, targetColIdx,
-                        self.numLetters(), self.numNonzeroes()))
-
-                    if doPrint:
-                        print("after downgradeRowEntry(pivotRC={}, targetC={})"
-                            .format(pivotRowAndCol, targetColIdx))
-                        print(self.degRep())
-
                     break
 
 
@@ -300,19 +265,13 @@ class JPolyMat():
         return det
 
 
-    def diagonalize(self, doPrint = False):
+    def diagonalize(self):
         try:
             self.normalize()
             self.centerTPowersOfRows()
 
-            print("diagonalize: numLetters={} nonZeroes={}"
-                .format(self.numLetters(), self.numNonzeroes()))
-
             for pivotRowAndCol in self.rowRange():
-                if doPrint:
-                    print(self.niceRep())
-                    print("killRowAndCol({})...".format(pivotRowAndCol))
-                self.killRowAndCol(pivotRowAndCol, doPrint)
+                self.killRowAndCol(pivotRowAndCol)
 
         except KeyboardInterrupt:
             sys.exit
@@ -565,7 +524,6 @@ def testBattery():
 
     ############################################################################
     # tests over
-    print("test battery passed")
 
 
 def getKnotFromFile(fileName):
@@ -609,55 +567,23 @@ def getKnotFromFile(fileName):
 
 def main(argv=None):
 
-    global DoAll
-
-    if len(argv) >= 2 and argv[1] == "-a":
-        DoAll = True
-
+    SkewFieldMain()
+    print("SkewField test battery passed")
     testBattery()
+    print("JPolyMat test battery passed")
 
-    knot3_1 = getKnotFromFile("knot3_1.txt")
-    knot4_1 = getKnotFromFile("knot4_1.txt")
-    knot5_1 = getKnotFromFile("knot5_1.txt")
-    knot5_2 = getKnotFromFile("knot5_2.txt")
-    knotSmall6_1 = getKnotFromFile("knotSmall6_1.txt")
-    knot6_2 = getKnotFromFile("knot6_2.txt")
+    knotNames = []
+    knots = []
 
-    if DoAll:
-        print("knot3_1...")
-        knot3_1.diagonalize()
-        print("knot3_1.delta1() = " + str(knot3_1.delta1()))
-        assert(knot3_1.delta1() == 1)
+    if not(argv is None) and len(argv) > 1:
+        for arg in argv[1:]:
+            knotNames.append(arg)
+            knots.append(getKnotFromFile(arg))
 
-        print("")
-        print("knot4_1...")
-        knot4_1.diagonalize()
-        print("knot4_1.delta1() = " + str(knot4_1.delta1()))
-        assert(knot4_1.delta1() == 1)
-
-        print("")
-        print("knot5_1...")
-        knot5_1.diagonalize()
-        print("knot5_1.delta1() = " + str(knot5_1.delta1()))
-        assert(knot5_1.delta1() == 3)
-
-        print("")
-        print("knot5_2...")
-        knot5_2.diagonalize()
-        print("knot5_2.delta1() = " + str(knot5_2.delta1()))
-        assert(knot5_2.delta1() == 1)
-
-        print("")
-        print("knotSmall6_1...")
-        knotSmall6_1.diagonalize()
-        print("knotSmall6_1.delta1() = " + str(knotSmall6_1.delta1()))
-        assert(knotSmall6_1.delta1() == 1)
-
-    print("")
-    print("knot6_2...")
-    knot6_2.diagonalize()
-    print("knot6_2.delta1() = " + str(knot6_2.delta1()))
-    assert(knot6_2.delta1() == 3)
+    for knot, knotName in zip(knots, knotNames):
+        print(knotName + "...")
+        knot.diagonalize()
+        print("    " + knotName + ".delta1() = " + str(knot.delta1()))
 
     return 0
 
