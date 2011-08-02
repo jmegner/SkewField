@@ -266,15 +266,12 @@ class JPolyMat():
 
 
     def diagonalize(self):
-        try:
-            self.normalize()
-            self.centerTPowersOfRows()
+        self.normalize()
+        self.centerTPowersOfRows()
 
-            for pivotRowAndCol in self.rowRange():
-                self.killRowAndCol(pivotRowAndCol)
+        for pivotRowAndCol in self.rowRange():
+            self.killRowAndCol(pivotRowAndCol)
 
-        except KeyboardInterrupt:
-            sys.exit
 
 
 ################################################################################
@@ -582,8 +579,13 @@ def main(argv=None):
 
     for knot, knotName in zip(knots, knotNames):
         print(knotName + "...")
-        knot.diagonalize()
-        print("    " + knotName + ".delta1() = " + str(knot.delta1()))
+        try:
+            knot.diagonalize()
+            print("    " + knotName + ".delta1() = " + str(knot.delta1()))
+
+        except KeyboardInterrupt:
+            print("aborting computation")
+            return 1
 
     return 0
 
